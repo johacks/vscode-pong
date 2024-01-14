@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TextDecoder } from 'util';
 
-
 export class GraphicEngine {
     width: number;
     height: number;
@@ -25,8 +24,16 @@ export class GraphicEngine {
         // Callback when the webview is ready
         this.panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'ready') {
+                this.setCanvasDimensions(width, height);
                 if (onReady) { onReady(); }
             }
+        });
+    }
+    
+    setCanvasDimensions(width: number, height: number) {
+        this.panel.webview.postMessage({
+            command: 'setCanvasDimensions',
+            args: {width, height}
         });
     }
 
@@ -37,14 +44,14 @@ export class GraphicEngine {
         });
     }
 
-    fillRect(x: number, y: number, width: number, height: number, color: string = 'black') {
+    fillRect(x: number, y: number, width: number, height: number) {
         this.panel.webview.postMessage({
             command: 'fillRect',
-            args: {x, y, width, height, color}
+            args: {x, y, width, height}
         });
     }
 
-    relativeToAbsolute({x, y, width, height}: {x: number, y: number, width: number, height: number}) {
+    relativeToAbsolute({x, y, width, height}: {x?: number, y?: number, width?: number, height?: number}) {
         return {
             x: x ? x * this.width : 0,
             y: y ? y * this.height : 0,
@@ -53,8 +60,36 @@ export class GraphicEngine {
         };
     }
 
+    drawMiddleLine() {
+        const {x: xFrom, y: yFrom} = this.relativeToAbsolute({x: 0.5, y: 0});
+        const {x: xTo, y: yTo} = this.relativeToAbsolute({x: 0.5, y: 1});
+        const {height: segmentLength} = this.relativeToAbsolute({height: 0.01});
+        const segments = [segmentLength, segmentLength];
+        this.panel.webview.postMessage({
+            command: 'fillDashedLine',
+            args: {xFrom, yFrom, xTo, yTo, segments}
+        });
+    }
+
     clear() {
-        this.panel.webview.postMessage({command: 'clear', args: {}});
+        this.panel.webview.postMessage({command: 'clearRect', args: {x: 0, y: 0, width: this.width, height: this.height}});
+    }
+
+    addKeyDownListener(callback: ({key }: {key: string}) => void) {
+        this.panel.webview.postMessage({command: 'addKeyDownListener'});
+        this.panel.webview.onDidReceiveMessage((message) => {
+            if (message.command === 'keydown') {
+                callback(message.args);
+            }
+        });
+    }
+
+    onNewAnimationFrame(callback: () => void) {
+        setTimeout(() => {
+            callback();
+            this.onNewAnimationFrame(callback);
+        }
+        , 1000 / 60);
     }
 }
 

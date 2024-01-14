@@ -13,7 +13,8 @@ export function activate(context: vscode.ExtensionContext) {
 		const graphicEngine = new GraphicEngine(800, 600, context, () => {
 			// Create a new game when the graphic engine is ready
 			console.log('Graphic engine ready');
-			new Game(graphicEngine);
+			const game = new Game(graphicEngine);
+			game.mainLoop();
 		});
 	});
 

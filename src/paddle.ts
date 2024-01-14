@@ -1,22 +1,26 @@
 import { GraphicEngine } from "./graphicEngine";
+import { Figure } from "./figure";
 
-export class Paddle {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    color: string;
+export class Paddle extends Figure {
+    stepSize: number;
 
-    constructor(x: number, y: number, width: number, height: number) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.color = 'red';
+    constructor(x: number, yCenter: number, width: number, height: number, stepSize: number) {
+        super(x, yCenter - height / 2, width, height, 0, 0);
+        this.stepSize = stepSize;
     }
 
     draw(graphicEngine: GraphicEngine) {
         const {x, y, width, height} = graphicEngine.relativeToAbsolute(this);
-        graphicEngine.fillRect(x, y, width, height, this.color);
+        graphicEngine.fillRect(x, y, width, height);
+    }
+
+    moveUp() {
+        this.speedY = -this.stepSize;
+        super.move();
+    }
+
+    moveDown() {
+        this.speedY = this.stepSize;
+        super.move();
     }
 }
