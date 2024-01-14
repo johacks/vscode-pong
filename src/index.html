@@ -1,0 +1,49 @@
+<html>
+
+<body>
+    <div>Our canvas:</div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+
+        function fillRect({ x, y, width, height, color }) {
+            if (color) {
+                const previousColor = context.fillStyle;
+                context.fillStyle = color;
+                context.fillRect(x, y, width, height);
+                context.fillStyle = previousColor;
+            }
+            else {
+                context.fillRect(x, y, width, height);
+            }
+        }
+        function clearRect({ x, y, width, height }) {
+            context.clearRect(x, y, width, height);
+        }
+
+        function setCanvasStyle(styles) {
+            Object.entries(styles).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    (canvas.style)[key] = value;
+                }
+            });
+        }
+
+        window.addEventListener('message', function (event) {
+            const message = event.data;
+            const args = message.args;
+            switch (message.command) {
+                case 'fillRect': { fillRect(args); break; }
+                case 'clearRect': { clearRect(args); break; }
+                case 'setCanvasStyle': { setCanvasStyle(args); break; }
+            }
+        });
+
+        // Tell the parent window that we are ready
+        const vscode = acquireVsCodeApi();
+        vscode.postMessage({ command: 'ready' }, '*');
+    </script>
+</body>
+
+</html>

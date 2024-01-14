@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "vspong.helloWorld",
-        "title": "Hello World"
+        "command": "vspong.canvas",
+        "title": "Canvas"
       }
     ]
   },
