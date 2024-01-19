@@ -8,7 +8,7 @@ import { Game } from './game';
 export function activate(context: vscode.ExtensionContext) {
 
 	// The command has been defined in the package.json file
-	let disposable = vscode.commands.registerCommand('vspong.canvas', () => {
+	let disposable = vscode.commands.registerCommand('vspong.pong', () => {
 		// The code you place here will be executed every time your command is executed
 		const graphicEngine = new GraphicEngine(800, 600, context, () => {
 			// Create a new game when the graphic engine is ready

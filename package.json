@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "vspong.canvas",
-        "title": "Canvas"
+        "command": "vspong.pong",
+        "title": "Pong"
       }
     ]
   },
