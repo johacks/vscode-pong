@@ -1,8 +1,49 @@
 <html>
-
+<head>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #canvas-div {
+            position: relative;
+            text-align: center;
+        }
+        #score-left,#score-right {
+            position: absolute;
+            margin-bottom: 10px;
+            font-size: 42px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            color: var(--vscode-editor-foreground);
+            padding-top: 120px;
+        }
+        #score-left {
+            width: 50%;
+            text-align: right;
+            padding-right: 60px;
+        }
+        #score-right {
+            width: 50%;
+            text-align: left;
+            padding-left: 60px;
+        }
+        #score-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
 <body>
-    <div>Our canvas:</div>
     <div id="canvas-div">
+        <div id="score-container">
+            <div id="score-left" class="score">0</div>
+            <div id="score-right" class="score">0</div>
+        </div>
         <canvas id="canvas"></canvas>
     </div>
     
@@ -12,6 +53,10 @@
         const vscode = acquireVsCodeApi();
         let addedKeydownListener = false;
         let addedKeyUpListener = false;
+        let leftPlayerScore = 0;
+        let rightPlayerScore = 0;
+        const scoreLeftDisplay = document.getElementById('score-left');
+        const scoreRightDisplay = document.getElementById('score-right');
         context.fillStyle = '--vscode-editor-foreground';
         context.strokeStyle = '--vscode-editor-foreground';
         context.globalAlpha = 1;
@@ -67,6 +112,16 @@
             });
         }
 
+        function setLeftPlayerScore(score) {
+            leftPlayerScore = score;
+            scoreLeftDisplay.innerText = score;
+        }
+
+        function setRightPlayerScore(score) {
+            rightPlayerScore = score;
+            scoreRightDisplay.innerText = score;
+        }
+
         function handleMessage(message) {
             const args = message.args;
             switch (message.command) {
@@ -78,6 +133,8 @@
                 case 'fillDashedLine': { fillDashedLine(args); break; }
                 case 'addKeyDownListener': { addKeydownListener(); break; }
                 case 'addKeyUpListener': { addKeyUpListener(); break; }
+                case 'setLeftPlayerScore': { setLeftPlayerScore(args); break; }
+                case 'setRightPlayerScore': { setRightPlayerScore(args); break; }
             }
         }
 

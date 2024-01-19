@@ -40,10 +40,16 @@ export class Game {
         // Add our listeners to handle changes in the game state
         this.graphicEngine.addKeyDownListener(({key}) => {
             if (key === 'ArrowUp') {
-                this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
+                this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
             } else if (key === 'ArrowDown') {
+                this.rightPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
+            }
+            else if (key === 'w') {
+                this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
+            }
+            else if (key === 's') {
                 this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
-            } // Enter key
+            }
             else if (key === 'Enter') {
                 this.ball.speedX = effectiveStepSize(-0.01);
                 // Speed y is a random number between -0.01 and 0.01
@@ -52,6 +58,9 @@ export class Game {
         });
         this.graphicEngine.addKeyUpListener(({key}) => {
             if (key === 'ArrowUp' || key === 'ArrowDown') {
+                this.rightPaddle.speedY = 0;
+            }
+            else if (key === 'w' || key === 's') {
                 this.leftPaddle.speedY = 0;
             }
         });
@@ -117,10 +126,13 @@ export class Game {
         this.leftPaddle.y = Math.max(0, Math.min(1 - this.leftPaddle.height, this.leftPaddle.y));
         this.rightPaddle.y = Math.max(0, Math.min(1 - this.rightPaddle.height, this.rightPaddle.y));
 
+        // Update the score
+        this.graphicEngine.setLeftPlayerScore(this.leftScore);
+        this.graphicEngine.setRightPlayerScore(this.rightScore);
+
         // Flush the message queue every other frame to avoid flickering
         if (callNumber % 2 === 0) {
             this.graphicEngine.flush();
-
         }
     }
 }

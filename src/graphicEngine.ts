@@ -96,6 +96,14 @@ export class GraphicEngine {
         });
     }
 
+    setLeftPlayerScore(score: number) {
+        this.messageQueue.push({command: 'setLeftPlayerScore', args: score});
+    }
+
+    setRightPlayerScore(score: number) {
+        this.messageQueue.push({command: 'setRightPlayerScore', args: score});
+    }
+
     flush() {
         this.panel.webview.postMessage({command: "messageQueue", args: this.messageQueue});
         this.messageQueue = [];
