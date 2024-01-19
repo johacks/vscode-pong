@@ -38,6 +38,11 @@ export class Game {
         this.rightScore = 0;
         this.ball = this.resetBall();
         // Add our listeners to handle changes in the game state
+        this.addKeyDownUpListeners();
+        
+    }
+
+    addKeyDownUpListeners() {
         this.graphicEngine.addKeyDownListener(({key}) => {
             if (key === 'ArrowUp') {
                 this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
@@ -87,25 +92,18 @@ export class Game {
         this.resetRightPaddle();
     }
 
-    drawBase() {
+    printBase() {
         this.graphicEngine.clear();
         this.graphicEngine.drawMiddleLine();
     }
 
-    mainLoop(callNumber: number = 0) {
-        // We draw on each new animation frame, which represents current state of the game
-        setTimeout(() => this.mainLoop(), 1000 / GAME_FPS);
-        if (callNumber % 2 === 0)
-        {
-            this.graphicEngine.clear();
-        }
-        this.drawBase();
-        this.leftPaddle.draw(this.graphicEngine);
-        this.rightPaddle.draw(this.graphicEngine);
-        this.ball.draw(this.graphicEngine);
+    moveFigures() {
         this.leftPaddle.move();
         this.rightPaddle.move();
         this.ball.move();
+    }
+
+    handleCollisions() {
         if (this.ball.intersectsWith(this.leftPaddle) || this.ball.intersectsWith(this.rightPaddle)) {
             this.ball.bounceOnPaddle();
         }
@@ -113,6 +111,12 @@ export class Game {
             this.ball.bounceOnFloorOrCeiling();
             this.ball.y = Math.max(0, Math.min(1 - this.ball.height, this.ball.y));
         }
+        // Keep paddles inside the canvas
+        this.leftPaddle.y = Math.max(0, Math.min(1 - this.leftPaddle.height, this.leftPaddle.y));
+        this.rightPaddle.y = Math.max(0, Math.min(1 - this.rightPaddle.height, this.rightPaddle.y));
+    }
+
+    handlePlayerScored() {
         if (this.ball.x <= 0) {
             this.rightScore++;
             this.resetFigures();
@@ -121,14 +125,34 @@ export class Game {
             this.leftScore++;
             this.resetFigures();
         }
-
-        // Keep paddles inside the canvas
-        this.leftPaddle.y = Math.max(0, Math.min(1 - this.leftPaddle.height, this.leftPaddle.y));
-        this.rightPaddle.y = Math.max(0, Math.min(1 - this.rightPaddle.height, this.rightPaddle.y));
-
         // Update the score
         this.graphicEngine.setLeftPlayerScore(this.leftScore);
         this.graphicEngine.setRightPlayerScore(this.rightScore);
+    }
+
+    printFigures() {
+        this.printBase();
+        this.leftPaddle.print(this.graphicEngine);
+        this.rightPaddle.print(this.graphicEngine);
+        this.ball.print(this.graphicEngine);
+    }
+
+    mainLoop(callNumber: number = 0) {
+        // We draw on each new animation frame, which represents current state of the game
+        setTimeout(() => this.mainLoop(), 1000 / GAME_FPS);
+        // Clear the canvas every other frame to avoid flickering
+        if (callNumber % 2 === 0) {
+            this.graphicEngine.clear();
+        }
+        // Move the figures
+        this.moveFigures();
+
+        // Handle collisions and boundaries
+        this.handleCollisions();
+        this.handlePlayerScored();
+
+        // Draw the figures and base of canvas
+        this.printFigures();
 
         // Flush the message queue every other frame to avoid flickering
         if (callNumber % 2 === 0) {

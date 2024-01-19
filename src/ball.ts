@@ -19,7 +19,7 @@ export class Ball extends Figure {
         this.speedY = speedY;
     }
 
-    draw(graphicEngine: GraphicEngine) {
+    print(graphicEngine: GraphicEngine) {
         const {x, y, width, height} = graphicEngine.relativeToAbsolute(this);
         graphicEngine.fillRect(x, y, width, height);
     }
