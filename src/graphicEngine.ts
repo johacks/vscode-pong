@@ -6,6 +6,7 @@ export class GraphicEngine {
     width: number;
     height: number;
     panel: vscode.WebviewPanel;
+    messageQueue: any[];
 
     constructor(width: number, height: number, context: vscode.ExtensionContext, onReady?: () => void) {
         this.width = width;
@@ -13,6 +14,7 @@ export class GraphicEngine {
         this.panel = vscode.window.createWebviewPanel(
             'canvas', 'Canvas Drawing', vscode.ViewColumn.One, {enableScripts: true}
         );
+        this.messageQueue = [];
         // Read index.html
         const filePath = context.asAbsolutePath(path.join('src', 'index.html'));
         const uri = vscode.Uri.file(filePath);
@@ -31,21 +33,21 @@ export class GraphicEngine {
     }
     
     setCanvasDimensions(width: number, height: number) {
-        this.panel.webview.postMessage({
+        this.messageQueue.push({
             command: 'setCanvasDimensions',
             args: {width, height}
         });
     }
 
     setCanvasStyle(styles: Partial<CSSStyleDeclaration>) {
-        this.panel.webview.postMessage({
+        this.messageQueue.push({
             command: 'setCanvasStyle',
             args: styles
         });
     }
 
     fillRect(x: number, y: number, width: number, height: number) {
-        this.panel.webview.postMessage({
+        this.messageQueue.push({
             command: 'fillRect',
             args: {x, y, width, height}
         });
@@ -65,18 +67,19 @@ export class GraphicEngine {
         const {x: xTo, y: yTo} = this.relativeToAbsolute({x: 0.5, y: 1});
         const {height: segmentLength} = this.relativeToAbsolute({height: 0.01});
         const segments = [segmentLength, segmentLength];
-        this.panel.webview.postMessage({
+        this.messageQueue.push({
             command: 'fillDashedLine',
             args: {xFrom, yFrom, xTo, yTo, segments}
         });
     }
 
     clear() {
-        this.panel.webview.postMessage({command: 'clearRect', args: {x: 0, y: 0, width: this.width, height: this.height}});
+        // Reset the message queue and clear the canvas
+        this.messageQueue.push({command: 'clearRect', args: {x: 0, y: 0, width: this.width, height: this.height}});
     }
 
     addKeyDownListener(callback: ({key }: {key: string}) => void) {
-        this.panel.webview.postMessage({command: 'addKeyDownListener'});
+        this.messageQueue.push({command: 'addKeyDownListener'});
         this.panel.webview.onDidReceiveMessage((message) => {
             if (message.command === 'keydown') {
                 callback(message.args);
@@ -84,12 +87,18 @@ export class GraphicEngine {
         });
     }
 
-    onNewAnimationFrame(callback: () => void) {
-        setTimeout(() => {
-            callback();
-            this.onNewAnimationFrame(callback);
-        }
-        , 1000 / 60);
+    addKeyUpListener(callback: ({key }: {key: string}) => void) {
+        this.messageQueue.push({command: 'addKeyUpListener'});
+        this.panel.webview.onDidReceiveMessage((message) => {
+            if (message.command === 'keyup') {
+                callback(message.args);
+            }
+        });
+    }
+
+    flush() {
+        this.panel.webview.postMessage({command: "messageQueue", args: this.messageQueue});
+        this.messageQueue = [];
     }
 }
 
