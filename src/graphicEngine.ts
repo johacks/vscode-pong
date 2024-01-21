@@ -12,7 +12,7 @@ export class GraphicEngine {
         this.width = width;
         this.height = height;
         this.panel = vscode.window.createWebviewPanel(
-            'canvas', 'Canvas Drawing', vscode.ViewColumn.One, {enableScripts: true}
+            'canvas', 'Pong', vscode.ViewColumn.One, {enableScripts: true}
         );
         this.messageQueue = [];
         // Read index.html

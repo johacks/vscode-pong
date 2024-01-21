@@ -12,10 +12,13 @@ const CANVAS_STYLE: Partial<CSSStyleDeclaration> = {
 };
 
 const BALL_SIZE = 0.01;
+const BALL_SPEED_X = 0.015;
+const BALL_SPEED_Y = 0.01;
 const PADDLE_WIDTH = 0.02;
-const PADDLE_HEIGHT = 0.25;
+const PADDLE_HEIGHT = 0.2;
 const PADDLE_STEP_SIZE = 0.025;
-const GAME_FPS = 30;
+const GAME_FPS = 60;  // Frames per second, in terms of computation
+const FRAME_PRINT_FREQUENCY = 2;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
 
 function effectiveStepSize(stepSize: number) {
     return stepSize * (60 / GAME_FPS);
@@ -28,6 +31,7 @@ export class Game {
     graphicEngine: GraphicEngine;
     leftScore: number;
     rightScore: number;
+    leftScoredLast: boolean;
 
     constructor(graphicEngine: GraphicEngine) {
         this.graphicEngine = graphicEngine;
@@ -37,9 +41,9 @@ export class Game {
         this.leftScore = 0;
         this.rightScore = 0;
         this.ball = this.resetBall();
+        this.leftScoredLast = false;
         // Add our listeners to handle changes in the game state
         this.addKeyDownUpListeners();
-        
     }
 
     addKeyDownUpListeners() {
@@ -56,9 +60,11 @@ export class Game {
                 this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
             }
             else if (key === 'Enter') {
-                this.ball.speedX = effectiveStepSize(-0.01);
-                // Speed y is a random number between -0.01 and 0.01
-                this.ball.speedY = effectiveStepSize(Math.random() * 0.02 - 0.01);
+                // If the left player scored last, the ball goes to the right, and vice versa
+                const speedXsign = this.leftScoredLast ? 1 : -1;
+                this.ball.speedX = effectiveStepSize(BALL_SPEED_X) * speedXsign;
+                // Speed y is a random number
+                this.ball.speedY = effectiveStepSize(BALL_SPEED_Y * (Math.random() * 2 - 1));
             }
         });
         this.graphicEngine.addKeyUpListener(({key}) => {
@@ -92,10 +98,6 @@ export class Game {
         this.resetRightPaddle();
     }
 
-    printBase() {
-        this.graphicEngine.clear();
-        this.graphicEngine.drawMiddleLine();
-    }
 
     moveFigures() {
         this.leftPaddle.move();
@@ -104,30 +106,30 @@ export class Game {
     }
 
     handleCollisions() {
-        if (this.ball.intersectsWith(this.leftPaddle) || this.ball.intersectsWith(this.rightPaddle)) {
-            this.ball.bounceOnPaddle();
-        }
-        if (this.ball.y <= 0 || this.ball.y + this.ball.height >= 1) {
-            this.ball.bounceOnFloorOrCeiling();
-            this.ball.y = Math.max(0, Math.min(1 - this.ball.height, this.ball.y));
-        }
-        // Keep paddles inside the canvas
-        this.leftPaddle.y = Math.max(0, Math.min(1 - this.leftPaddle.height, this.leftPaddle.y));
-        this.rightPaddle.y = Math.max(0, Math.min(1 - this.rightPaddle.height, this.rightPaddle.y));
+        this.ball.handleBounceOnPaddle(this.leftPaddle);
+        this.ball.handleBounceOnPaddle(this.rightPaddle);
+        this.ball.handleBounceOnFloorOrCeiling();
     }
 
     handlePlayerScored() {
+        // If the ball is outside the canvas, the player scored
         if (this.ball.x <= 0) {
             this.rightScore++;
+            this.graphicEngine.setRightPlayerScore(this.rightScore);
             this.resetFigures();
+            this.leftScoredLast = false;
         }
-        if (this.ball.x + this.ball.width >= 1) {
+        else if (this.ball.x + this.ball.width >= 1) {
             this.leftScore++;
+            this.graphicEngine.setLeftPlayerScore(this.leftScore);
             this.resetFigures();
+            this.leftScoredLast = true;
         }
-        // Update the score
-        this.graphicEngine.setLeftPlayerScore(this.leftScore);
-        this.graphicEngine.setRightPlayerScore(this.rightScore);
+    }
+
+    printBase() {
+        this.graphicEngine.clear();
+        this.graphicEngine.drawMiddleLine();
     }
 
     printFigures() {
@@ -141,7 +143,7 @@ export class Game {
         // We draw on each new animation frame, which represents current state of the game
         setTimeout(() => this.mainLoop(), 1000 / GAME_FPS);
         // Clear the canvas every other frame to avoid flickering
-        if (callNumber % 2 === 0) {
+        if (callNumber % FRAME_PRINT_FREQUENCY === 0) {
             this.graphicEngine.clear();
         }
         // Move the figures
@@ -155,7 +157,7 @@ export class Game {
         this.printFigures();
 
         // Flush the message queue every other frame to avoid flickering
-        if (callNumber % 2 === 0) {
+        if (callNumber % FRAME_PRINT_FREQUENCY === 0) {
             this.graphicEngine.flush();
         }
     }
