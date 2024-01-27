@@ -2,14 +2,6 @@ import { Ball } from "./ball";
 import { GraphicEngine } from "./graphicEngine";
 import { Paddle } from "./paddle";
 
-const CANVAS_STYLE: Partial<CSSStyleDeclaration> = {
-    border: '1px solid',
-    borderColor: '--vscode-editor-foreground',
-    width: '100%',
-    margin: '0',
-    padding: '0',
-};
-
 const BALL_SIZE = 0.01;
 const BALL_SPEED_X = 0.015;
 const BALL_SPEED_Y = 0.01;
@@ -25,7 +17,7 @@ export function effectiveStepSize(stepSize: number) {
     return stepSize * (60 / GAME_FPS);
 }
 
-export { CANVAS_STYLE, BALL_SIZE, BALL_SPEED_X, BALL_SPEED_Y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_STEP_SIZE, GAME_FPS, FRAME_PRINT_FREQUENCY};
+export { BALL_SIZE, BALL_SPEED_X, BALL_SPEED_Y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_STEP_SIZE, GAME_FPS, FRAME_PRINT_FREQUENCY};
 
 export class Local2PlayerGame {
     leftPaddle: Paddle;
@@ -40,7 +32,6 @@ export class Local2PlayerGame {
 
     constructor(graphicEngine: GraphicEngine) {
         this.graphicEngine = graphicEngine;
-        this.graphicEngine.setCanvasStyle(CANVAS_STYLE);
         this.leftPaddle = this.resetLeftPaddle();
         this.rightPaddle = this.resetRightPaddle();
         this.leftScore = 0;
@@ -56,23 +47,16 @@ export class Local2PlayerGame {
     }
 
     addKeyDownUpListeners() {
-        this.graphicEngine.addKeyDownListener(({key}) => {
-            if (key === 'ArrowUp') {
-                this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
-            } else if (key === 'ArrowDown') {
-                this.rightPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
-            }
-            else if (key === 'w') {
-                this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
-            }
-            else if (key === 's') {
-                this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
-            }
-            else if (key === 'Enter') {
-                this.serveBall();
+        window.addEventListener('keydown', ({key}) => {
+            switch (key as string) {
+                case 'w': this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE); break;
+                case 's': this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE); break;
+                case 'ArrowUp': this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE); break;
+                case 'ArrowDown': this.rightPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE); break;
             }
         });
-        this.graphicEngine.addKeyUpListener(({key}) => {
+        window.addEventListener('keyup', ({key}) => {
+            key = key as string;
             if (key === 'ArrowUp' || key === 'ArrowDown') {
                 this.rightPaddle.speedY = 0;
             }
@@ -189,14 +173,13 @@ export class Local1PlayerGame extends Local2PlayerGame {
     }
 
     addKeyDownUpListeners() {
-        this.graphicEngine.addKeyDownListener(({key}) => {
-            if (key === 'ArrowUp') {
-                this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
-            } else if (key === 'ArrowDown') {
-                this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
+        window.addEventListener('keydown', ({key}) => {
+            switch (key) {
+                case 'ArrowUp': this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE); break;
+                case 'ArrowDown': this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE); break;
             }
         });
-        this.graphicEngine.addKeyUpListener(({key}) => {
+        window.addEventListener('keyup', ({key}) => {
             if (key === 'ArrowUp' || key === 'ArrowDown') {
                 this.leftPaddle.speedY = 0;
             }

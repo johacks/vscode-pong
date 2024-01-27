@@ -44,6 +44,14 @@
             font-size: 12px;
             font-family: Arial, sans-serif;
         }
+
+        #canvas {
+            border: 1px solid;
+            border-color: --vscode-editor-foreground;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
     </style>
 </head>
 <body>
@@ -66,156 +74,11 @@
 </body>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
-    const vscode = acquireVsCodeApi();
-    let addedKeydownListener = false;
-    let addedKeyUpListener = false;
-    const scoreLeftDisplay = document.getElementById('left-score');
-    const scoreRightDisplay = document.getElementById('right-score');
-    const leftNameDisplay = document.getElementById('left-name');
-    const rightNameDisplay = document.getElementById('right-name');
-    const gameIdDisplay = document.getElementById('game-id');
-    let connection = null;
-    context.fillStyle = '--vscode-editor-foreground';
-    context.strokeStyle = '--vscode-editor-foreground';
-    context.globalAlpha = 1;
-
-    function setCanvasDimensions({ width, height }) {
-        document.getElementById('canvas-div').style.width = width + 'px';
-        document.getElementById('canvas-div').style.height = height + 'px';
-        canvas.width = width;
-        canvas.height = height;
-    }
-
-    function setCanvasStyle(styles) {
-        Object.entries(styles).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                (canvas.style)[key] = value;
-            }
-        });
-    }
-
-    function fillRect({ x, y, width, height }) {
-        context.fillRect(x, y, width, height);
-    }
-    function clearRect({ x, y, width, height }) {
-        context.clearRect(x, y, width, height);
-    }
-
-    function fillDashedLine({ xFrom, yFrom, xTo, yTo, segments }) {
-        context.beginPath();
-        context.setLineDash(segments);
-        context.moveTo(xFrom, yFrom);
-        context.lineTo(xTo, yTo);
-        context.stroke();
-        context.closePath();
-    }
-
-    function addKeydownListener() {
-        if (addedKeydownListener) {
-            return;
-        }
-        window.addEventListener('keydown', function (event) {  
-            console.log('keydown', event.key);
-            vscode.postMessage({ command: 'keydown', args: { key: event.key } }, '*');
-        });
-    }
-
-    function addKeyUpListener() {
-        if (addedKeydownListener) {
-            return;
-        }
-        window.addEventListener('keyup', function (event) {  
-            console.log('keyup', event.key);
-            vscode.postMessage({ command: 'keyup', args: { key: event.key } }, '*');
-        });
-    }
-
-    function setLeftPlayerScore(score) {
-        scoreLeftDisplay.innerText = score;
-    }
-
-    function setLeftPlayerName(name) {
-        leftNameDisplay.innerText = name;
-    }
-
-    function setRightPlayerScore(score) {
-        scoreRightDisplay.innerText = score;
-    }
-
-    function setRightPlayerName(name) {
-        rightNameDisplay.innerText = name;
-    }
-
-    function printGameId(gameId) {
-        gameIdDisplay.innerText = `
-            Game ID: ${gameId}
-            Share this ID with your friend to play together!
-        `;
-    }
-
-    function createConnection(gameId) {
-        const peer = new Peer(gameId);
-        peer.on('open', function(id) {
-            console.log('My peer ID is: ' + id);
-        });
-        peer.on('connection', function(conn) {
-            connection = conn;
-            vscode.postMessage({ command: 'connectionOpen', args: {}}, '*');
-            connection.on('data', function(data) {
-                vscode.postMessage({ command: 'connectionMessage', args: data }, '*');
-            });
-        });
-    }
-
-    function connectToPeer(peerId) {
-        connection = peer.connect(peerId);
-        connection.on('error', function(err) {
-            console.log(err);
-            vscode.postMessage({ command: 'connectionError', args: err }, '*');
-        });
-        connection.on('open', function() {
-            vscode.postMessage({ command: 'connectionOpen', args: {}}, '*');
-            connection.on('data', function(data) {
-                vscode.postMessage({ command: 'connectionMessage', args: data }, '*');
-            });
-        });
-    }
-
-    function sendConnectionMessage(data) {
-        connection.send(data);
-    }
-
-    function handleMessage(message) {
-        const args = message.args;
-        switch (message.command) {
-            case 'messageQueue': { for (const m of args) { handleMessage(m); } break; }
-            case 'setCanvasDimensions': { setCanvasDimensions(args); break; }
-            case 'setCanvasStyle': { setCanvasStyle(args); break; }
-            case 'fillRect': { fillRect(args); break; }
-            case 'clearRect': { clearRect(args); break; }
-            case 'fillDashedLine': { fillDashedLine(args); break; }
-            case 'addKeyDownListener': { addKeydownListener(); break; }
-            case 'addKeyUpListener': { addKeyUpListener(); break; }
-            case 'setLeftPlayerScore': { setLeftPlayerScore(args); break; }
-            case 'setRightPlayerScore': { setRightPlayerScore(args); break; }
-            case 'setLeftPlayerName': { setLeftPlayerName(args); break; }
-            case 'setRightPlayerName': { setRightPlayerName(args); break; }
-            case 'printGameId': { printGameId(args); break; }
-            case 'createConnection': { createConnection(args); break; }
-            case 'connectToPeer': { connectToPeer(args); break; }
-            case 'sendConnectionMessage': { sendConnectionMessage(args); break; }
-        }
-    }
-
-    window.addEventListener('message', (event) => {
-        const message = event.data;
-        handleMessage(message);
-    });
+    // Here we will put our packed code
+    /*--webpack-bundle--*/
+</script>
+<script>
     
-    // Tell the parent window that we are ready
-    vscode.postMessage({ command: 'ready' }, '*');
 </script>
 
 </html>

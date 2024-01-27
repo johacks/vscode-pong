@@ -1,8 +1,8 @@
-import { Local1PlayerGame, Local2PlayerGame } from './game';
-import { GraphicEngine } from './graphicEngine';
-import { PADDLE_STEP_SIZE } from './game';
-import { effectiveStepSize } from './game';
-import { Figure } from './figure';
+// import { Local1PlayerGame, Local2PlayerGame } from './app/game';
+// import { GraphicEngine } from './app/graphicEngine';
+// import { PADDLE_STEP_SIZE } from './app/game';
+// import { effectiveStepSize } from './app/game';
+// import { Figure } from './app/figure';
 
 interface Position {
     x: number;
