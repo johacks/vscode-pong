@@ -13,11 +13,13 @@ const CANVAS_STYLE: Partial<CSSStyleDeclaration> = {
 const BALL_SIZE = 0.01;
 const BALL_SPEED_X = 0.015;
 const BALL_SPEED_Y = 0.01;
+const MAX_BALL_SPEED_FACTOR = 2;
+const BALL_SPEED_RATE = 1.05;
 const PADDLE_WIDTH = 0.02;
 const PADDLE_HEIGHT = 0.2;
 const PADDLE_STEP_SIZE = 0.025;
-const GAME_FPS = 60;  // Frames per second, in terms of computation
-const FRAME_PRINT_FREQUENCY = 2;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
+const GAME_FPS = 120;  // Frames per second, in terms of computation
+const FRAME_PRINT_FREQUENCY = 4;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
 
 export function effectiveStepSize(stepSize: number) {
     return stepSize * (60 / GAME_FPS);
@@ -81,7 +83,7 @@ export class Local2PlayerGame {
     }
 
     resetBall() {
-        this.ball = new Ball(0.5, 0.5, BALL_SIZE, 0.0, 0.0);
+        this.ball = new Ball(0.5, 0.5, BALL_SIZE, 0.0, 0.0, BALL_SPEED_RATE, MAX_BALL_SPEED_FACTOR);
         // Serve the ball after 1 second
         setTimeout(() => this.serveBall(), 1000);
         return this.ball;
@@ -129,15 +131,17 @@ export class Local2PlayerGame {
         if (this.ball.x <= 0) {
             this.rightScore++;
             this.graphicEngine.setRightPlayerScore(this.rightScore);
-            this.resetFigures();
             this.leftScoredLast = false;
         }
         else if (this.ball.x + this.ball.width >= 1) {
             this.leftScore++;
             this.graphicEngine.setLeftPlayerScore(this.leftScore);
-            this.resetFigures();
             this.leftScoredLast = true;
         }
+        else {
+            return;
+        }
+        this.resetFigures();
     }
 
     printBase() {
@@ -199,7 +203,7 @@ export class Local1PlayerGame extends Local2PlayerGame {
         });
     }
 
-    moveFigures() {
+    makeAIMove() {
         // Move the right paddle towards the ball
         const ballCenterY = this.ball.y + this.ball.height / 2;
         const paddleCenterY = this.rightPaddle.y + this.rightPaddle.height / 2;
@@ -212,6 +216,10 @@ export class Local1PlayerGame extends Local2PlayerGame {
         else {
             this.rightPaddle.speedY = 0;
         }
+    }
+
+    moveFigures() {
+        this.makeAIMove();
         super.moveFigures();
     }
 }

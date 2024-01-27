@@ -9,8 +9,19 @@ export class Ball extends Figure {
     height: number;
     speedX: number;
     speedY: number;
+    speedIncrementRatio: number;
+    maxSpeedIncrement: number;
+    totalSpeedIncrement: number = 1;
 
-    constructor(xCenter: number, yCenter: number, size: number, speedX: number, speedY: number) {
+    constructor(
+        xCenter: number,
+        yCenter: number,
+        size: number,
+        speedX: number,
+        speedY: number,
+        speedIncrementRatio: number,
+        maxSpeedIncrement: number
+    ) {
         super(xCenter - size / 2, yCenter - size / 2, size, size, speedX, speedY);
         this.x = xCenter - size / 2;
         this.y = yCenter - size / 2;
@@ -18,6 +29,8 @@ export class Ball extends Figure {
         this.height = size;
         this.speedX = speedX;
         this.speedY = speedY;
+        this.speedIncrementRatio = speedIncrementRatio;
+        this.maxSpeedIncrement = maxSpeedIncrement;
     }
 
     print(graphicEngine: GraphicEngine) {
@@ -46,10 +59,14 @@ export class Ball extends Figure {
         // 1: the ball hit the bottom of the paddle: bounce down
 
         // Compute angle of the bounce
-        const angle = (collisionPoint - 0.5) * Math.PI / 3;
+        const angle = (collisionPoint - 0.5) * Math.PI / 2;
 
-        // Compute new speed
-        const speed = Math.sqrt(this.speedX ** 2 + this.speedY ** 2);
+        // Compute new speed^
+        const newTotalIncrement = Math.min(this.totalSpeedIncrement * this.speedIncrementRatio, this.maxSpeedIncrement);
+        const speedIncrement = newTotalIncrement / this.totalSpeedIncrement;
+        this.totalSpeedIncrement = newTotalIncrement;
+
+        const speed = Math.sqrt(this.speedX ** 2 + this.speedY ** 2) * speedIncrement;
         this.speedX = speed * Math.cos(angle) * Math.sign(this.speedX);
         this.speedY = speed * Math.sin(angle);
     }
