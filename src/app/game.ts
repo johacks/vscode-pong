@@ -29,6 +29,7 @@ export class Local2PlayerGame {
     leftScoredLast: boolean;
     leftPlayerName: string;
     rightPlayerName: string;
+    servingBall: boolean = false;
 
     constructor(graphicEngine: GraphicEngine) {
         this.graphicEngine = graphicEngine;
@@ -73,6 +74,7 @@ export class Local2PlayerGame {
     }
 
     serveBall() {
+        this.servingBall = false;
         // If the left player scored last, the ball goes to the right, and vice versa
         const speedXsign = this.leftScoredLast ? 1 : -1;
         this.ball.speedX = effectiveStepSize(BALL_SPEED_X) * speedXsign;
@@ -148,7 +150,8 @@ export class Local2PlayerGame {
     }
 
     checkShouldServeBall() {
-        if (this.ball.speedX === 0) {
+        if (this.ball.speedX === 0 && !this.servingBall) {
+            this.servingBall = true;
             setTimeout(() => this.serveBall(), 1000);
         }
     }
