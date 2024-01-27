@@ -4,17 +4,18 @@
         body {
             display: flex;
             justify-content: center;
-            align-items: center;
             height: 100vh;
             margin: 0;
         }
         #canvas-div {
             position: relative;
             text-align: center;
+            display: flex;
+            height: 100% !important;
+            flex-direction: column;
         }
-        #score-left,#score-right {
+        #left-player,#right-player {
             width: 50%;
-            position: absolute;
             margin-bottom: 10px;
             font-size: 42px;
             font-weight: bold;
@@ -22,11 +23,11 @@
             color: var(--vscode-editor-foreground);
             padding-top: 120px;
         }
-        #score-left {
+        #left-player {
             text-align: right;
             padding-right: 60px;
         }
-        #score-right {
+        #right-player {
             text-align: left;
             padding-left: 60px;
         }
@@ -34,29 +35,48 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100%;
+        }
+
+        #game-info {
+            position: relative;
+            color: var(--vscode-editor-foreground);
+            font-size: 12px;
+            font-family: Arial, sans-serif;
         }
     </style>
 </head>
 <body>
     <div id="canvas-div">
         <div id="score-container">
-            <div id="score-left" class="score">0</div>
-            <div id="score-right" class="score">0</div>
+            <div id="left-player">
+                <span id="left-name">-</span>
+                <span id="left-score">0</span>
+            </div>
+            <div id="right-player">
+                <span id="right-name">-</span>
+                <span id="right-score">0</span>
+            </div>
         </div>
         <canvas id="canvas"></canvas>
+        <div id="game-info">
+            <div id="game-id"></div>
+        </div>
     </div>
 </body>
-
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext('2d');
     const vscode = acquireVsCodeApi();
     let addedKeydownListener = false;
     let addedKeyUpListener = false;
-    let leftPlayerScore = 0;
-    let rightPlayerScore = 0;
-    const scoreLeftDisplay = document.getElementById('score-left');
-    const scoreRightDisplay = document.getElementById('score-right');
+    const scoreLeftDisplay = document.getElementById('left-score');
+    const scoreRightDisplay = document.getElementById('right-score');
+    const leftNameDisplay = document.getElementById('left-name');
+    const rightNameDisplay = document.getElementById('right-name');
+    const gameIdDisplay = document.getElementById('game-id');
+    let connection = null;
     context.fillStyle = '--vscode-editor-foreground';
     context.strokeStyle = '--vscode-editor-foreground';
     context.globalAlpha = 1;
@@ -113,13 +133,58 @@
     }
 
     function setLeftPlayerScore(score) {
-        leftPlayerScore = score;
         scoreLeftDisplay.innerText = score;
     }
 
+    function setLeftPlayerName(name) {
+        leftNameDisplay.innerText = name;
+    }
+
     function setRightPlayerScore(score) {
-        rightPlayerScore = score;
         scoreRightDisplay.innerText = score;
+    }
+
+    function setRightPlayerName(name) {
+        rightNameDisplay.innerText = name;
+    }
+
+    function printGameId(gameId) {
+        gameIdDisplay.innerText = `
+            Game ID: ${gameId}
+            Share this ID with your friend to play together!
+        `;
+    }
+
+    function createConnection(gameId) {
+        const peer = new Peer(gameId);
+        peer.on('open', function(id) {
+            console.log('My peer ID is: ' + id);
+        });
+        peer.on('connection', function(conn) {
+            connection = conn;
+            vscode.postMessage({ command: 'connectionOpen', args: {}}, '*');
+            connection.on('data', function(data) {
+                vscode.postMessage({ command: 'connectionMessage', args: data }, '*');
+            });
+        });
+    }
+
+    function connectToPeer(peerId) {
+        connection = peer.connect(peerId);
+        connection.on('error', function(err) {
+            console.log(err);
+            vscode.postMessage({ command: 'connectionError', args: err }, '*');
+        });
+        connection.on('open', function() {
+            vscode.postMessage({ command: 'connectionOpen', args: {}}, '*');
+            connection.on('data', function(data) {
+                vscode.postMessage({ command: 'connectionMessage', args: data }, '*');
+            });
+        });
+    }
+
+    function sendConnectionMessage(data) {
+        connection.send(data);
     }
 
     function handleMessage(message) {
@@ -135,6 +200,12 @@
             case 'addKeyUpListener': { addKeyUpListener(); break; }
             case 'setLeftPlayerScore': { setLeftPlayerScore(args); break; }
             case 'setRightPlayerScore': { setRightPlayerScore(args); break; }
+            case 'setLeftPlayerName': { setLeftPlayerName(args); break; }
+            case 'setRightPlayerName': { setRightPlayerName(args); break; }
+            case 'printGameId': { printGameId(args); break; }
+            case 'createConnection': { createConnection(args); break; }
+            case 'connectToPeer': { connectToPeer(args); break; }
+            case 'sendConnectionMessage': { sendConnectionMessage(args); break; }
         }
     }
 

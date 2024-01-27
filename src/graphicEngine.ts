@@ -104,6 +104,49 @@ export class GraphicEngine {
         this.messageQueue.push({command: 'setRightPlayerScore', args: score});
     }
 
+    setLeftPlayerName(name: string) {
+        this.messageQueue.push({command: 'setLeftPlayerName', args: name});
+    }
+
+    setRightPlayerName(name: string) {
+        this.messageQueue.push({command: 'setRightPlayerName', args: name});
+    }
+
+    printGameId(gameId: string) {
+        this.messageQueue.push({command: 'printGameId', args: gameId});
+    }
+
+    createConnection(gameId: string, onConnectionReady: () => void, onConnectionMessage: (message: string) => void) {
+        this.messageQueue.push({command: 'createConnection', args: gameId});
+        this.panel.webview.onDidReceiveMessage((message) => {
+            if (message.command === 'connectionOpen') {
+                onConnectionReady();
+            }
+            else if (message.command === 'connectionMessage') {
+                onConnectionMessage(message.args);
+            }
+        });
+    }
+
+    connectToPeer(gameId: string, onError: (error: object) => void, onConnectionReady: () => void, onMessage: (message: string) => void) {
+        this.messageQueue.push({command: 'connectToPeer', args: gameId});
+        this.panel.webview.onDidReceiveMessage((message) => {
+            if (message.command === 'connectionError') {
+                onError(message.args);
+            }
+            else if (message.command === 'connectionOpen') {
+                onConnectionReady();
+            }
+            else if (message.command === 'connectionMessage') {
+                onMessage(message.args);
+            }
+        });
+    }
+
+    sendConnectionMessage(message: string) {
+        this.messageQueue.push({command: 'sendConnectionMessage', args: message});
+    }
+
     flush() {
         this.panel.webview.postMessage({command: "messageQueue", args: this.messageQueue});
         this.messageQueue = [];

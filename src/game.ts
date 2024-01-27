@@ -6,7 +6,6 @@ const CANVAS_STYLE: Partial<CSSStyleDeclaration> = {
     border: '1px solid',
     borderColor: '--vscode-editor-foreground',
     width: '100%',
-    height: '100%',
     margin: '0',
     padding: '0',
 };
@@ -20,11 +19,13 @@ const PADDLE_STEP_SIZE = 0.025;
 const GAME_FPS = 60;  // Frames per second, in terms of computation
 const FRAME_PRINT_FREQUENCY = 2;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
 
-function effectiveStepSize(stepSize: number) {
+export function effectiveStepSize(stepSize: number) {
     return stepSize * (60 / GAME_FPS);
 }
 
-export class Game {
+export { CANVAS_STYLE, BALL_SIZE, BALL_SPEED_X, BALL_SPEED_Y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_STEP_SIZE, GAME_FPS, FRAME_PRINT_FREQUENCY};
+
+export class Local2PlayerGame {
     leftPaddle: Paddle;
     rightPaddle: Paddle;
     ball: Ball;
@@ -32,6 +33,8 @@ export class Game {
     leftScore: number;
     rightScore: number;
     leftScoredLast: boolean;
+    leftPlayerName: string;
+    rightPlayerName: string;
 
     constructor(graphicEngine: GraphicEngine) {
         this.graphicEngine = graphicEngine;
@@ -42,6 +45,10 @@ export class Game {
         this.rightScore = 0;
         this.ball = this.resetBall();
         this.leftScoredLast = false;
+        this.leftPlayerName = 'Left Player';
+        this.rightPlayerName = 'Right Player';
+        this.graphicEngine.setLeftPlayerName(this.leftPlayerName);
+        this.graphicEngine.setRightPlayerName(this.rightPlayerName);
         // Add our listeners to handle changes in the game state
         this.addKeyDownUpListeners();
     }
@@ -60,11 +67,7 @@ export class Game {
                 this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
             }
             else if (key === 'Enter') {
-                // If the left player scored last, the ball goes to the right, and vice versa
-                const speedXsign = this.leftScoredLast ? 1 : -1;
-                this.ball.speedX = effectiveStepSize(BALL_SPEED_X) * speedXsign;
-                // Speed y is a random number
-                this.ball.speedY = effectiveStepSize(BALL_SPEED_Y * (Math.random() * 2 - 1));
+                this.serveBall();
             }
         });
         this.graphicEngine.addKeyUpListener(({key}) => {
@@ -79,7 +82,17 @@ export class Game {
 
     resetBall() {
         this.ball = new Ball(0.5, 0.5, BALL_SIZE, 0.0, 0.0);
+        // Serve the ball after 1 second
+        setTimeout(() => this.serveBall(), 1000);
         return this.ball;
+    }
+
+    serveBall() {
+        // If the left player scored last, the ball goes to the right, and vice versa
+        const speedXsign = this.leftScoredLast ? 1 : -1;
+        this.ball.speedX = effectiveStepSize(BALL_SPEED_X) * speedXsign;
+        // Speed y is a random number
+        this.ball.speedY = effectiveStepSize(BALL_SPEED_Y * (Math.random() * 2 - 1));
     }
 
     resetLeftPaddle() {
@@ -141,7 +154,7 @@ export class Game {
 
     mainLoop(callNumber: number = 0) {
         // We draw on each new animation frame, which represents current state of the game
-        setTimeout(() => this.mainLoop(), 1000 / GAME_FPS);
+        setTimeout(() => this.mainLoop(callNumber + 1), 1000 / GAME_FPS);
         // Clear the canvas every other frame to avoid flickering
         if (callNumber % FRAME_PRINT_FREQUENCY === 0) {
             this.graphicEngine.clear();
@@ -162,3 +175,44 @@ export class Game {
         }
     }
 }
+
+export class Local1PlayerGame extends Local2PlayerGame {
+
+
+    constructor(graphicEngine: GraphicEngine) {
+        super(graphicEngine);
+        this.rightPlayerName = 'Computer';
+    }
+
+    addKeyDownUpListeners() {
+        this.graphicEngine.addKeyDownListener(({key}) => {
+            if (key === 'ArrowUp') {
+                this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
+            } else if (key === 'ArrowDown') {
+                this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
+            }
+        });
+        this.graphicEngine.addKeyUpListener(({key}) => {
+            if (key === 'ArrowUp' || key === 'ArrowDown') {
+                this.leftPaddle.speedY = 0;
+            }
+        });
+    }
+
+    moveFigures() {
+        // Move the right paddle towards the ball
+        const ballCenterY = this.ball.y + this.ball.height / 2;
+        const paddleCenterY = this.rightPaddle.y + this.rightPaddle.height / 2;
+        if (ballCenterY > paddleCenterY) {
+            this.rightPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
+        }
+        else if (ballCenterY < paddleCenterY) {
+            this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
+        }
+        else {
+            this.rightPaddle.speedY = 0;
+        }
+        super.moveFigures();
+    }
+}
+
