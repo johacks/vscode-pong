@@ -16,32 +16,26 @@ export function activate(context: vscode.ExtensionContext) {
 		runApp(context, {command: 'startLocalSingleplayer'});
 	});
 
-	// let hostMultiplayerDisposal = vscode.commands.registerCommand('vspong.pongRemoteMultiplayerCreate', () => {
-	// 	const graphicEngine = new GraphicEngine(800, 600, context, () => {
-	// 		const game = new Remote2PlayerGameHost(graphicEngine);
-	// 		game.mainLoop();
-	// 	});
-	// });
+	let hostMultiplayerDisposal = vscode.commands.registerCommand('vspong.pongRemoteMultiplayerCreate', () => {
+		runApp(context, {command: 'startRemoteMultiplayer'});
+	});
 
-	// let joinMultiplayerDisposal = vscode.commands.registerCommand('vspong.pongRemoteMultiplayerJoin', () => {
-	// 	Extract game ID from user
-	// 	vscode.window.showInputBox({prompt: 'Enter game ID'}).then((gameId) => {
-	// 		if (gameId) {
-	// 			const graphicEngine = new GraphicEngine(800, 600, context, () => {
-	// 				const game = new Remote2PlayerGameClient(graphicEngine, gameId);
-	// 				game.mainLoop();
-	// 			});
-	// 		}
-	// 		else {
-	// 			vscode.window.showErrorMessage('No game ID entered');
-	// 		}
-	// 	});
-	// });
+	let joinMultiplayerDisposal = vscode.commands.registerCommand('vspong.pongRemoteMultiplayerJoin', () => {
+		// Extract game ID from user
+		vscode.window.showInputBox({prompt: 'Enter game ID'}).then((gameId) => {
+			if (gameId) {
+				runApp(context, {command: 'joinRemoteMultiplayer', args: gameId});
+			}
+			else {
+				vscode.window.showErrorMessage('No game ID entered');
+			}
+		});
+	});
 
 	context.subscriptions.push(localMultiplayerDisposal);
-	// context.subscriptions.push(localSingleplayerDisposal);
-	// context.subscriptions.push(hostMultiplayerDisposal);
-	// context.subscriptions.push(joinMultiplayerDisposal);
+	context.subscriptions.push(localSingleplayerDisposal);
+	context.subscriptions.push(hostMultiplayerDisposal);
+	context.subscriptions.push(joinMultiplayerDisposal);
 }
 
 // This method is called when your extension is deactivated

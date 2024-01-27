@@ -69,7 +69,6 @@ export class Local2PlayerGame {
     resetBall() {
         this.ball = new Ball(0.5, 0.5, BALL_SIZE, 0.0, 0.0, BALL_SPEED_RATE, MAX_BALL_SPEED_FACTOR);
         // Serve the ball after 1 second
-        setTimeout(() => this.serveBall(), 1000);
         return this.ball;
     }
 
@@ -136,14 +135,22 @@ export class Local2PlayerGame {
 
     printBase() {
         this.graphicEngine.clear();
+        this.graphicEngine.setLeftPlayerName(this.leftPlayerName);
+        this.graphicEngine.setRightPlayerName(this.rightPlayerName);
         this.graphicEngine.drawMiddleLine();
     }
 
-    printFigures() {
+    printGame() {
         this.printBase();
         this.leftPaddle.print(this.graphicEngine);
         this.rightPaddle.print(this.graphicEngine);
         this.ball.print(this.graphicEngine);
+    }
+
+    checkShouldServeBall() {
+        if (this.ball.speedX === 0) {
+            setTimeout(() => this.serveBall(), 1000);
+        }
     }
 
     mainLoop(callNumber: number = 0) {
@@ -159,12 +166,12 @@ export class Local2PlayerGame {
         // Handle collisions and boundaries
         this.handleCollisions();
         this.handlePlayerScored();
-
-        // Draw the figures and base of canvas
-        this.printFigures();
+        this.checkShouldServeBall();
 
         // Flush the message queue every other frame to avoid flickering
         if (callNumber % FRAME_PRINT_FREQUENCY === 0) {
+            // Draw the figures and base of canvas
+            this.printGame();
             this.graphicEngine.flush();
         }
     }
