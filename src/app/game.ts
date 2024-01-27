@@ -11,7 +11,7 @@ const PADDLE_WIDTH = 0.02;
 const PADDLE_HEIGHT = 0.2;
 const PADDLE_STEP_SIZE = 0.025;
 const GAME_FPS = 120;  // Frames per second, in terms of computation
-const FRAME_PRINT_FREQUENCY = 4;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
+const FRAME_PRINT_FREQUENCY = 2;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
 
 export function effectiveStepSize(stepSize: number) {
     return stepSize * (60 / GAME_FPS);
@@ -105,8 +105,14 @@ export class Local2PlayerGame {
     }
 
     handleCollisions() {
-        this.ball.handleBounceOnPaddle(this.leftPaddle);
-        this.ball.handleBounceOnPaddle(this.rightPaddle);
+        if (this.ball.speedX < 0) {
+            // If the ball is moving left, it can only collide with the left paddle
+            this.ball.handleBounceOnPaddle(this.leftPaddle);
+        }
+        else {
+            // If the ball is moving right, it can only collide with the right paddle
+            this.ball.handleBounceOnPaddle(this.rightPaddle);
+        }
         this.ball.handleBounceOnFloorOrCeiling();
     }
 
