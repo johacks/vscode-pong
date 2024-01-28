@@ -3,7 +3,7 @@
   "displayName": "VSPong",
   "publisher": "johacks",
   "description": "Lose precious time playing pong with your coworkers!",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -48,7 +48,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "build": "webpack --mode production && node bundle_index.js",
+    "compile": "npm run build && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
@@ -63,7 +64,8 @@
     "@vscode/test-cli": "^0.0.4",
     "@vscode/test-electron": "^2.3.8",
     "eslint": "^8.56.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "ts-loader": "^9.5.1",
