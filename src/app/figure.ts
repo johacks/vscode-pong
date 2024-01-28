@@ -1,4 +1,4 @@
-import { GraphicEngine } from "./graphicEngine";
+import { GraphicEngine } from './graphicEngine';
 
 export abstract class Figure {
     x: number;

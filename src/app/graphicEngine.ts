@@ -8,27 +8,40 @@ export class GraphicEngine {
     scoreRightDisplay: HTMLSpanElement;
     leftNameDisplay: HTMLSpanElement;
     rightNameDisplay: HTMLSpanElement;
-    gameIdDisplay: HTMLDivElement;
+    gameIdDisplay: HTMLSpanElement;
+    controlsDisplay: HTMLSpanElement;
+    gameInfoDisplay: HTMLDivElement;
 
     constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
         this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
         this.canvasContext = this.canvas.getContext('2d') as CanvasRenderingContext2D;
-        this.canvasContext.fillStyle = '--vscode-editor-foreground';
-        this.canvasContext.strokeStyle = '--vscode-editor-foreground';
         this.canvasContext.globalAlpha = 1;
         this.scoreLeftDisplay = document.getElementById('left-score') as HTMLSpanElement;
         this.scoreRightDisplay = document.getElementById('right-score') as HTMLSpanElement;
         this.leftNameDisplay = document.getElementById('left-name') as HTMLSpanElement;
         this.rightNameDisplay = document.getElementById('right-name') as HTMLSpanElement;
-        this.gameIdDisplay = document.getElementById('game-id') as HTMLDivElement;
+        this.gameIdDisplay = document.getElementById('game-id') as HTMLSpanElement;
+        this.controlsDisplay = document.getElementById('controls') as HTMLSpanElement;
+        this.gameInfoDisplay = document.getElementById('game-info') as HTMLDivElement;
         this.setCanvasDimensions(width, height);
+    }
+
+    get backgroundColor() {
+        return getComputedStyle(this.canvas).getPropertyValue('--vscode-editor-background');
+    }
+
+    get foregroundColor() {
+        return getComputedStyle(this.canvas).getPropertyValue('--vscode-editor-foreground');
     }
     
     setCanvasDimensions(width: number, height: number) {
         this.canvas.width = width;
         this.canvas.height = height;
+        const gameInfoPadding = 20;
+        this.gameInfoDisplay.style.width = (width - gameInfoPadding * 2) + 'px';
+        this.gameInfoDisplay.style.padding = gameInfoPadding + 'px';
     }
 
     relativeToAbsolute({x, y, width, height}: {x?: number, y?: number, width?: number, height?: number}) {
@@ -40,10 +53,13 @@ export class GraphicEngine {
         };
     }
 
-    fillRect(x: number, y: number, width: number, height: number) {
+    fillRect(x: number, y: number, width: number, height: number, color?: string) {
         this.buffer.push(
             () => {
+                this.canvasContext.beginPath();
+                this.canvasContext.fillStyle = color || this.foregroundColor;
                 this.canvasContext.fillRect(x, y, width, height);
+                this.canvasContext.closePath();
             }
         );
     }
@@ -64,6 +80,7 @@ export class GraphicEngine {
         this.buffer.push(
             () => {
                 this.canvasContext.beginPath();
+                this.canvasContext.strokeStyle = this.foregroundColor;
                 this.canvasContext.setLineDash(segments);
                 this.canvasContext.moveTo(xFrom, yFrom);
                 this.canvasContext.lineTo(xTo, yTo);
@@ -113,7 +130,15 @@ export class GraphicEngine {
     printGameId(gameId: string) {
         this.buffer.push(
             () => {
-                this.gameIdDisplay.textContent = gameId;
+                this.gameIdDisplay.innerHTML = `Game ID: <b>${gameId}</b>. Share this id with your friend to play together!`;
+            }
+        );
+    }
+
+    printControls(controls: string) {
+        this.buffer.push(
+            () => {
+                this.controlsDisplay.textContent = controls;
             }
         );
     }

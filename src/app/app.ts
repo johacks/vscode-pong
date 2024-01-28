@@ -1,6 +1,6 @@
-import { GraphicEngine } from "./graphicEngine";
-import { Local1PlayerGame, Local2PlayerGame } from "./game";
-import { Remote2PlayerGameHost, Remote2PlayerGameClient } from "./remoteGame";
+import { GraphicEngine } from './graphicEngine';
+import { Local1PlayerGame, Local2PlayerGame } from './game';
+import { Remote2PlayerGameHost, Remote2PlayerGameClient } from './remoteGame';
 
 declare function acquireVsCodeApi(): any;
 export interface Message {
@@ -22,8 +22,8 @@ function startLocalSingleplayer() {
     game.mainLoop();
 }
 
-function createMultiplayerGame() {
-    const game = new Remote2PlayerGameHost(graphicEngine);
+function createMultiplayerGame(gameId: string) {
+    const game = new Remote2PlayerGameHost(graphicEngine, gameId);
     game.mainLoop();
 }
 
@@ -38,8 +38,8 @@ function handleMessage(message: Message) {
     switch (message.command) {
         case 'startLocalMultiplayer': startLocalMultiplayer(); break;
         case 'startLocalSingleplayer': startLocalSingleplayer(); break;
-        case 'startRemoteMultiplayer': createMultiplayerGame(); break;
-        case 'joinRemoteMultiplayer': joinMultiplayerGame(args.gameId); break;
+        case 'startRemoteMultiplayer': createMultiplayerGame(args); break;
+        case 'joinRemoteMultiplayer': joinMultiplayerGame(args); break;
     }
 }
 

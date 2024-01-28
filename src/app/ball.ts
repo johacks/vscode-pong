@@ -1,6 +1,6 @@
-import { Figure } from "./figure";
-import { GraphicEngine } from "./graphicEngine";
-import { Paddle } from "./paddle";
+import { Figure } from './figure';
+import { GraphicEngine } from './graphicEngine';
+import { Paddle } from './paddle';
 
 export class Ball extends Figure {
     x: number;

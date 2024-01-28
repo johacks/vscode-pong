@@ -1,5 +1,5 @@
-import { GraphicEngine } from "./graphicEngine";
-import { Figure } from "./figure";
+import { GraphicEngine } from './graphicEngine';
+import { Figure } from './figure';
 
 export class Paddle extends Figure {
 

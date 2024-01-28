@@ -20,7 +20,20 @@
         "curly": "warn",
         "eqeqeq": "warn",
         "no-throw-literal": "warn",
-        "semi": "off"
+        "semi": "off",
+        // Spaces instead of tabs
+        "indent": [
+            "warn",
+            4,
+            {
+                "SwitchCase": 1
+            }
+        ],
+        // Only allow single quotes
+        "quotes": [
+            "warn",
+            "single"
+        ]
     },
     "ignorePatterns": [
         "out",

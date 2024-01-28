@@ -1,6 +1,6 @@
-import { Ball } from "./ball";
-import { GraphicEngine } from "./graphicEngine";
-import { Paddle } from "./paddle";
+import { Ball } from './ball';
+import { GraphicEngine } from './graphicEngine';
+import { Paddle } from './paddle';
 
 const BALL_SIZE = 0.01;
 const BALL_SPEED_X = 0.015;
@@ -121,25 +121,28 @@ export class Local2PlayerGame {
         // If the ball is outside the canvas, the player scored
         if (this.ball.x <= 0) {
             this.rightScore++;
-            this.graphicEngine.setRightPlayerScore(this.rightScore);
             this.leftScoredLast = false;
         }
         else if (this.ball.x + this.ball.width >= 1) {
             this.leftScore++;
-            this.graphicEngine.setLeftPlayerScore(this.leftScore);
             this.leftScoredLast = true;
         }
-        else {
-            return;
-        }
+        else { return; }
         this.resetFigures();
+    }
+
+    printControls() {
+        this.graphicEngine.printControls('Move left paddle with W/S keys, right paddle with Up/Down arrows.');
     }
 
     printBase() {
         this.graphicEngine.clear();
+        this.graphicEngine.setLeftPlayerScore(this.leftScore);
         this.graphicEngine.setLeftPlayerName(this.leftPlayerName);
         this.graphicEngine.setRightPlayerName(this.rightPlayerName);
+        this.graphicEngine.setRightPlayerScore(this.rightScore);
         this.graphicEngine.drawMiddleLine();
+        this.printControls();
     }
 
     printGame() {
@@ -220,6 +223,10 @@ export class Local1PlayerGame extends Local2PlayerGame {
     moveFigures() {
         this.makeAIMove();
         super.moveFigures();
+    }
+
+    printControls() {
+        this.graphicEngine.printControls('Move left paddle with Up/Down arrows.');
     }
 }
 
