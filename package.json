@@ -15,6 +15,12 @@
   "categories": [
     "Other"
   ],
+  "author": {
+    "name": "Joaquín Jiménez",
+    "email": "joaquinjimenezlc@gmail.com",
+    "url": "https://github.com/johacks/vscode-pong.git"
+  },
+  "license": "MIT",
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
