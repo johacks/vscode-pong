@@ -2,6 +2,9 @@
 .vscode-test/**
 .gitignore
 .yarnrc
+src/**
+# We ignore compiled app, as we use the bundled index.html for webview js logic
+out/app/**
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/.eslintrc.json
