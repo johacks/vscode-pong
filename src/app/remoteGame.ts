@@ -4,8 +4,35 @@ import { PADDLE_STEP_SIZE } from './game';
 import { effectiveStepSize } from './game';
 import { Figure } from './figure';
 
+const iceServers = [
+    {
+        urls: 'stun:stun.relay.metered.ca:80',
+    },
+    {
+        urls: 'turn:standard.relay.metered.ca:80',
+        username: 'c232ae0f3fd3138bec9ddb8b',
+        credential: 'HudKCArjK0Mx62LU',
+    },
+    {
+        urls: 'turn:standard.relay.metered.ca:80?transport=tcp',
+        username: 'c232ae0f3fd3138bec9ddb8b',
+        credential: 'HudKCArjK0Mx62LU',
+    },
+    {
+        urls: 'turn:standard.relay.metered.ca:443',
+        username: 'c232ae0f3fd3138bec9ddb8b',
+        credential: 'HudKCArjK0Mx62LU',
+    },
+    {
+        urls: 'turns:standard.relay.metered.ca:443?transport=tcp',
+        username: 'c232ae0f3fd3138bec9ddb8b',
+        credential: 'HudKCArjK0Mx62LU',
+    },
+];
+
 declare class Peer {
-    constructor(id?: string);
+    constructor(id?: string, options?: object);
+    constructor(options?: object);
     on(event: string, callback: (connection: DataConnection) => void): void;
     connect(id: string): DataConnection;
 }
@@ -83,7 +110,7 @@ export class Remote2PlayerGameHost extends Local2PlayerGame {
     }
 
     setUpPeerListeners() {
-        this.peer = new Peer(this.gameId);
+        this.peer = new Peer(this.gameId, {config: {iceServers}});
         this.peer.on('error', (error) => console.error('Peer error: ' + JSON.stringify(error)));
         this.peer.on('connection', (connection: DataConnection) => {
             this.connection = connection;
@@ -166,7 +193,7 @@ export class Remote2PlayerGameClient extends Local2PlayerGame {
 
     setUpPeerListeners() {
         // Connect to peer
-        this.peer = new Peer();
+        this.peer = new Peer({config: {iceServers}});
         this.peer.on('open', (id) => {
             this.connection = (this.peer as Peer).connect(this.gameId);
             this.connection.on('error', (error) => this.onConnectionError(error as object));

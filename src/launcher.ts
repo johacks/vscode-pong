@@ -5,7 +5,7 @@ const isWebviewArgSent : {[key: string]: boolean} = {};
 
 // Packs all modules in src/app into a single bundle.js file and attaches it to index.html
 // Then displays result in a webview
-export function runApp(context: vscode.ExtensionContext, args: any, debug: boolean = false) {
+export function runApp(context: vscode.ExtensionContext, args: any, debug: boolean = true) {
     // Create webview
     const panel = vscode.window.createWebviewPanel('vspong' + args.command, 'VS Pong', vscode.ViewColumn.One, {
         enableScripts: true,
