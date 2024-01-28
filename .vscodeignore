@@ -5,6 +5,10 @@
 src/**
 # We ignore compiled app, as we use the bundled index.html for webview js logic
 out/app/**
+bundle_index.js
+# Included in index.html
+out/bundle.js
+out/test/**
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/.eslintrc.json
