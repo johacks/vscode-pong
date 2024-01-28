@@ -29,7 +29,17 @@
         "command": "vspong.pongRemoteMultiplayerJoin",
         "title": "Join a friend's pong game"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Lose precious time playing pong with your coworkers!",
+      "properties": {
+        "vspong.username": {
+          "type": "string",
+          "default": "Player",
+          "description": "Your username, only for aesthetic purposes."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

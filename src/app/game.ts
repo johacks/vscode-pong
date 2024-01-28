@@ -31,7 +31,7 @@ export class Local2PlayerGame {
     rightPlayerName: string;
     servingBall: boolean = false;
 
-    constructor(graphicEngine: GraphicEngine) {
+    constructor(graphicEngine: GraphicEngine, leftPlayerName: string) {
         this.graphicEngine = graphicEngine;
         this.leftPaddle = this.resetLeftPaddle();
         this.rightPaddle = this.resetRightPaddle();
@@ -39,8 +39,8 @@ export class Local2PlayerGame {
         this.rightScore = 0;
         this.ball = this.resetBall();
         this.leftScoredLast = false;
-        this.leftPlayerName = 'Left Player';
-        this.rightPlayerName = 'Right Player';
+        this.leftPlayerName = leftPlayerName;
+        this.rightPlayerName = 'Guest';
         this.graphicEngine.setLeftPlayerName(this.leftPlayerName);
         this.graphicEngine.setRightPlayerName(this.rightPlayerName);
         // Add our listeners to handle changes in the game state
@@ -186,8 +186,8 @@ export class Local2PlayerGame {
 export class Local1PlayerGame extends Local2PlayerGame {
 
 
-    constructor(graphicEngine: GraphicEngine) {
-        super(graphicEngine);
+    constructor(graphicEngine: GraphicEngine, leftPlayerName: string) {
+        super(graphicEngine, leftPlayerName);
         this.rightPlayerName = 'Computer';
     }
 

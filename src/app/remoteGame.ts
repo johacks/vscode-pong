@@ -49,8 +49,7 @@ export class Remote2PlayerGameHost extends Local2PlayerGame {
     connection: DataConnection | undefined;
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string='Host', rightPlayerName: string='-') {
-        super(graphicEngine);
-        this.leftPlayerName = leftPlayerName;
+        super(graphicEngine, leftPlayerName);
         this.rightPlayerName = rightPlayerName;
         // Genrate a random game ID
         this.gameId = gameId;
@@ -126,9 +125,8 @@ export class Remote2PlayerGameClient extends Local2PlayerGame {
     connection: DataConnection | undefined;
     peer: Peer | undefined;
 
-    constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string='-', rightPlayerName: string='Client') {
-        super(graphicEngine);
-        this.leftPlayerName = leftPlayerName;
+    constructor(graphicEngine: GraphicEngine, gameId: string, rightPlayerName: string='Client', leftPlayerName: string='-', ) {
+        super(graphicEngine, leftPlayerName);
         this.rightPlayerName = rightPlayerName;
         this.gameId = gameId;
         this.setUpPeerListeners();

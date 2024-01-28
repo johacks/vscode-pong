@@ -12,23 +12,23 @@ export interface Message {
 const graphicEngine = new GraphicEngine(800, 600);
 
 // Start a local multiplayer game
-function startLocalMultiplayer() {
-    const game = new Local2PlayerGame(graphicEngine);
+function startLocalMultiplayer({username} : {username: string}) {
+    const game = new Local2PlayerGame(graphicEngine, username);
     game.mainLoop();
 }
 
-function startLocalSingleplayer() {
-    const game = new Local1PlayerGame(graphicEngine);
+function startLocalSingleplayer({username} : {username: string}) {
+    const game = new Local1PlayerGame(graphicEngine, username);
     game.mainLoop();
 }
 
-function createMultiplayerGame(gameId: string) {
-    const game = new Remote2PlayerGameHost(graphicEngine, gameId);
+function createMultiplayerGame({gameId, username} : {gameId: string, username: string}) {
+    const game = new Remote2PlayerGameHost(graphicEngine, gameId, username);
     game.mainLoop();
 }
 
-function joinMultiplayerGame(gameId: string) {
-    const game = new Remote2PlayerGameClient(graphicEngine, gameId);
+function joinMultiplayerGame({gameId, username} : {gameId: string, username: string}) {
+    const game = new Remote2PlayerGameClient(graphicEngine, gameId, username);
     game.mainLoop();
 }
 
@@ -36,8 +36,8 @@ function joinMultiplayerGame(gameId: string) {
 function handleMessage(message: Message) {
     const args = message.args;
     switch (message.command) {
-        case 'startLocalMultiplayer': startLocalMultiplayer(); break;
-        case 'startLocalSingleplayer': startLocalSingleplayer(); break;
+        case 'startLocalMultiplayer': startLocalMultiplayer(args); break;
+        case 'startLocalSingleplayer': startLocalSingleplayer(args); break;
         case 'startRemoteMultiplayer': createMultiplayerGame(args); break;
         case 'joinRemoteMultiplayer': joinMultiplayerGame(args); break;
     }
