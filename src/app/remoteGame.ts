@@ -18,14 +18,14 @@ fetch(GEO_LOC_URL)
                 fetch(IPV4_URL)
                     .then(response => response.text())
                     .then(data => {
-                        const closestAddr = data.trim().split('\n')
+                        let closestAddr = data.trim().split('\n')
                             .map(addr => {
                                 const [stunLat, stunLon] = geoLocs[addr.split(':')[0]];
                                 const dist = ((latitude - stunLat) ** 2 + (longitude - stunLon) ** 2) ** 0.5;
                                 return [addr, dist];
                             })
                             .reduce((prev, curr) => prev[1] <= curr[1] ? prev : curr)[0];
-
+                        closestAddr = 'stun:' + closestAddr;
                         console.log('Using closest STUN server: ' + closestAddr);
                         // Insert at the beginning of the list
                         iceServers.unshift({ urls: closestAddr as string });
