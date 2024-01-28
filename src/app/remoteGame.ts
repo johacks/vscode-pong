@@ -7,19 +7,38 @@ import { Figure } from './figure';
 const GEO_LOC_URL = 'https://raw.githubusercontent.com/pradt2/always-online-stun/master/geoip_cache.txt';
 const IPV4_URL = 'https://raw.githubusercontent.com/pradt2/always-online-stun/master/valid_ipv4s.txt';
 const GEO_USER_URL = 'https://geolocation-db.com/json/';
-const geoLocs = await(await fetch(GEO_LOC_URL)).json();
-const { latitude, longitude } = await(await fetch(GEO_USER_URL)).json();
-const closestAddr = (await(await fetch(IPV4_URL)).text()).trim().split('\n')
-    .map(addr => {
-        const [stunLat, stunLon] = geoLocs[addr.split(':')[0]];
-        const dist = ((latitude - stunLat) ** 2 + (longitude - stunLon) ** 2 ) ** .5;
-        return [addr, dist];
-    }).reduce(([addrA, distA], [addrB, distB]) => distA <= distB ? [addrA, distA] : [addrB, distB])[0];
+let finishedGeoLoc = false;
+
+fetch(GEO_LOC_URL)
+    .then(response => response.json())
+    .then(geoLocs => {
+        fetch(GEO_USER_URL)
+            .then(response => response.json())
+            .then(({ latitude, longitude }) => {
+                fetch(IPV4_URL)
+                    .then(response => response.text())
+                    .then(data => {
+                        const closestAddr = data.trim().split('\n')
+                            .map(addr => {
+                                const [stunLat, stunLon] = geoLocs[addr.split(':')[0]];
+                                const dist = ((latitude - stunLat) ** 2 + (longitude - stunLon) ** 2) ** 0.5;
+                                return [addr, dist];
+                            })
+                            .reduce((prev, curr) => prev[1] <= curr[1] ? prev : curr)[0];
+
+                        console.log('Using closest STUN server: ' + closestAddr);
+                        // Insert at the beginning of the list
+                        iceServers.unshift({ urls: closestAddr as string });
+                    });
+            });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    }).finally(() => {
+        finishedGeoLoc = true;
+    });
 
 const iceServers = [
-    {  // Try to use closest STUN server
-        urls: closestAddr
-    },
     {
         urls: 'stun:stun.l.google.com:19302',
     },
@@ -128,6 +147,10 @@ export class Remote2PlayerGameHost extends Local2PlayerGame {
     }
 
     setUpPeerListeners() {
+        if (!finishedGeoLoc) {
+            setTimeout(() => this.setUpPeerListeners(), 100);
+            return;
+        }
         this.peer = new Peer(this.gameId, {config: {iceServers}});
         this.peer.on('error', (error) => console.error('Peer error: ' + JSON.stringify(error)));
         this.peer.on('connection', (connection: DataConnection) => {
@@ -211,6 +234,10 @@ export class Remote2PlayerGameClient extends Local2PlayerGame {
 
     setUpPeerListeners() {
         // Connect to peer
+        if (!finishedGeoLoc) {
+            setTimeout(() => this.setUpPeerListeners(), 100);
+            return;
+        }
         this.peer = new Peer({config: {iceServers}});
         this.peer.on('open', (id) => {
             this.connection = (this.peer as Peer).connect(this.gameId);
