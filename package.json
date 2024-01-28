@@ -1,6 +1,7 @@
 {
   "name": "vspong",
   "displayName": "VSPong",
+  "publisher": "johacks",
   "description": "Lose precious time playing pong with your coworkers!",
   "version": "0.0.1",
   "engines": {
