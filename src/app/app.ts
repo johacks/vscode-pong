@@ -14,22 +14,22 @@ const graphicEngine = new GraphicEngine(800, 600);
 // Start a local multiplayer game
 function startLocalMultiplayer({username} : {username: string}) {
     const game = new Local2PlayerGame(graphicEngine, username);
-    game.mainLoop();
+    game.lobbyLoop();
 }
 
 function startLocalSingleplayer({username} : {username: string}) {
     const game = new Local1PlayerGame(graphicEngine, username);
-    game.mainLoop();
+    game.lobbyLoop();
 }
 
 function createMultiplayerGame({gameId, username} : {gameId: string, username: string}) {
     const game = new Remote2PlayerGameHost(graphicEngine, gameId, username);
-    game.mainLoop();
+    game.lobbyLoop();
 }
 
 function joinMultiplayerGame({gameId, username} : {gameId: string, username: string}) {
     const game = new Remote2PlayerGameClient(graphicEngine, gameId, username);
-    game.mainLoop();
+    game.lobbyLoop();
 }
 
 // Handle messages from the extension

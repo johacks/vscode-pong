@@ -1,8 +1,288 @@
 import { Local1PlayerGame, Local2PlayerGame } from './game';
 import { GraphicEngine } from './graphicEngine';
 import { PADDLE_STEP_SIZE } from './game';
-import { effectiveStepSize } from './game';
 import { Figure } from './figure';
+
+
+declare class Peer {
+    constructor(id?: string, options?: object);
+    constructor(options?: object);
+    on(event: string, callback: (connection: DataConnection) => void): void;
+    connect(id: string): DataConnection;
+}
+
+declare class DataConnection {
+    on(event: string, callback: (message: string | object) => void): void;
+    send(message: string): void;
+}
+
+interface PaddlePosition {
+    y: number;
+    speedY: number;
+}
+
+interface Position extends PaddlePosition {
+    x?: number;
+    speedX?: number;
+}
+
+function applyPosition(figure: Figure, position: Position) {
+    figure.y = position.y;
+    figure.speedY = position.speedY;
+    figure.x = position.x ?? figure.x;
+    figure.speedX = position.speedX ?? figure.speedX;
+}
+
+interface PeerState {
+    opponentPaddle: PaddlePosition;
+    timestamp: number;
+    ball?: Position;
+    score?: number;
+}
+
+enum Side {
+    LEFT = 'left', RIGHT = 'right'
+}
+
+abstract class Remote2PlayerGame extends Local2PlayerGame {
+    gameId: string;
+    peer: Peer | undefined;
+    connection: DataConnection | undefined;
+    side: Side;
+    ping: number = 0;
+    connectionReady: boolean = false;
+
+    constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string, rightPlayerName: string, side: Side) {
+        super(graphicEngine, leftPlayerName);
+        this.rightPlayerName = rightPlayerName;
+        this.gameId = gameId;
+        this.side = side;
+        this.setUpPeerListeners();
+    }
+    abstract setUpPeerListeners(): void;
+
+    // Properties depending on the side
+    get paddle(): Figure {
+        return this.side === Side.LEFT ? this.leftPaddle : this.rightPaddle;
+    }
+    get playerName(): string {
+        return this.side === Side.LEFT ? this.leftPlayerName : this.rightPlayerName;
+    }
+    set opponentName(name: string) {
+        if (this.side === Side.LEFT) { this.rightPlayerName = name; } 
+        else { this.leftPlayerName = name; }
+    }
+    get score(): number {
+        return this.side === Side.LEFT ? this.rightScore : this.leftScore;
+    }
+    set score(score: number) {
+        if (this.side === Side.LEFT) { this.rightScore = score; } 
+        else { this.leftScore = score; }
+    }
+
+    ballMovingToOurSide(): boolean {
+        return this.ball.speedX < 0 && this.side === Side.LEFT || this.ball.speedX > 0 && this.side === Side.RIGHT;
+    }
+
+    onConnectionReady() {
+        const message = '[HANDSHAKE] ' + this.playerName;
+        this.connection?.send(message);
+        this.connectionReady = true;
+    }
+    onConnectionMessage(message: string) {
+        // Check if the message is a handshake
+        if (message.startsWith('[HANDSHAKE] ')) {
+            this.opponentName = message.substring('[HANDSHAKE] '.length);
+            return;
+        }
+        // Check if the message is a peer state
+        try {
+            const peerState = JSON.parse(message) as PeerState;
+            this.score = peerState.score ?? this.score;
+            applyPosition(this.paddle, peerState.opponentPaddle);
+            if (peerState.ball) {
+                applyPosition(this.ball, peerState.ball);
+            }
+            this.ping = Date.now() - peerState.timestamp;
+        } catch (error) {
+            console.error('Received invalid data from peer: ' + message);
+        }
+    }
+    addKeyDownUpListeners() {
+        window.addEventListener('keydown', ({key}) => {
+            switch (key) {
+                case 'ArrowUp': this.paddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE); break;
+                case 'ArrowDown': this.paddle.speedY = this.adaptStep(PADDLE_STEP_SIZE); break;
+            }
+        });
+        window.addEventListener('keyup', ({key}) => {
+            this.keyPressed = true;
+            if (key === 'ArrowUp' || key === 'ArrowDown') {
+                this.paddle.speedY = 0;
+            }
+        });
+    }
+
+    handleCollisions() {
+        if (this.ballMovingToOurSide()) {
+            // If the ball is moving to our side, we act as the host
+            this.ball.handleBounceOnPaddle(this.paddle);
+            this.ball.handleBounceOnFloorOrCeiling();
+        }        
+    }
+
+    moveFigures() {
+        if (this.ballMovingToOurSide()) {
+            this.ball.move();
+        }
+        this.paddle.move();
+    }
+
+    handlePlayerScored() {
+        // Only check our own side
+        if (this.ballMovingToOurSide()) {
+            this.score++;
+            this.leftScoredLast = this.side === Side.LEFT;
+            this.resetFigures();
+        }
+    }
+
+    checkShouldServeBall() {
+        if (this.ball.speedX === 0 && !this.servingBall && ((this.side === Side.LEFT) === this.leftScoredLast)) {
+            this.servingBall = true;
+            setTimeout(() => this.serveBall(), 1000);
+        }
+    }
+
+    printBase(): void {
+        super.printBase();
+        this.graphicEngine.printPing(this.ping);
+    }
+
+    mainLoop(callNumber?: number) {
+        if (!this.connection) { return; }
+        let gameState: PeerState = {
+            opponentPaddle: {y: this.paddle.y, speedY: this.paddle.speedY},
+            timestamp: Date.now(),
+        };
+        // If the ball is moving to our side, we send ball state and score
+        if (this.ballMovingToOurSide() || this.servingBall) {
+            gameState.ball = {x: this.ball.x, y: this.ball.y, speedX: this.ball.speedX, speedY: this.ball.speedY};
+            gameState.score = this.score;
+        }
+        this.connection.send(JSON.stringify(gameState));
+        super.mainLoop(callNumber);
+    }
+}
+
+
+export class Remote2PlayerGameHost extends Remote2PlayerGame {
+
+    constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string='Host', rightPlayerName: string='-') {
+        super(graphicEngine, leftPlayerName, gameId, rightPlayerName, Side.LEFT);
+    }
+
+    setUpPeerListeners() {
+        if (!finishedGeoLoc) {
+            setTimeout(() => this.setUpPeerListeners(), 100);
+            return;
+        }
+        this.peer = new Peer(this.gameId, {config: {iceServers}});
+        this.peer.on('error', (error) => console.error('Peer error: ' + JSON.stringify(error)));
+        this.peer.on('connection', (connection: DataConnection) => {
+            this.connection = connection;
+            this.connection.on('open', () => this.onConnectionReady());
+            this.connection.on('data', (message) => this.onConnectionMessage(message as string));
+        });
+    }
+
+    addKeyDownUpListeners() {
+        window.addEventListener('keydown', ({key}) => {
+            switch (key) {
+                case 'ArrowUp': this.leftPaddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE); break;
+                case 'ArrowDown': this.leftPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE); break;
+            }
+        });
+        window.addEventListener('keyup', ({key}) => {
+            if (key === 'ArrowUp' || key === 'ArrowDown') {
+                this.leftPaddle.speedY = 0;
+            }
+        });
+    }
+
+    printControls(): void {
+        // Call method on Local1PlayerGame
+        Local1PlayerGame.prototype.printControls.call(this);
+    }
+
+    printBase(): void {
+        super.printBase();
+        this.graphicEngine.printGameId(this.gameId);
+    }
+
+    lobbyLoop(callNumber: number = 0): void {
+        if (this.connectionReady) {
+            setTimeout(() => this.mainLoop(0), 1000 / this.loopsPerSecond);
+            return;
+        }
+        this.printBase();
+        this.graphicEngine.printTitle('VSPong');
+        if ((callNumber / (this.loopsPerSecond * 0.75)) % 2 < 1) {  // Blink every 0.75 seconds
+            this.graphicEngine.printSubTitle('Waiting for player to join...');
+        }
+        this.graphicEngine.flush();
+        setTimeout(() => this.lobbyLoop(callNumber + 1), 1000 / this.loopsPerSecond);
+    }
+}
+
+
+export class Remote2PlayerGameClient extends Remote2PlayerGame {
+    constructor(graphicEngine: GraphicEngine, gameId: string, rightPlayerName: string='Client', leftPlayerName: string='-', ) {
+        super(graphicEngine, leftPlayerName, gameId, rightPlayerName, Side.RIGHT);
+
+    }
+
+    onConnectionError(error: object) {
+        console.error('Connection error: ' + JSON.stringify(error));
+        throw new Error('Failed to connect to game with ID ' + this.gameId + ': ' + error);
+    }
+
+    setUpPeerListeners() {
+        // Connect to peer
+        if (!finishedGeoLoc) {
+            setTimeout(() => this.setUpPeerListeners(), 100);
+            return;
+        }
+        this.peer = new Peer({config: {iceServers}});
+        this.peer.on('open', (id) => {
+            this.connection = (this.peer as Peer).connect(this.gameId);
+            this.connection.on('error', (error) => this.onConnectionError(error as object));
+            this.connection.on('open', () => this.onConnectionReady());
+            this.connection.on('data', (message) => this.onConnectionMessage(message as string));
+        }
+        );
+    }
+
+    printControls(): void {
+        this.graphicEngine.printControls('Move right paddle with Up/Down arrows.');
+    }
+
+    lobbyLoop(callNumber: number = 0): void {
+        if (this.connectionReady) {
+            setTimeout(() => this.mainLoop(0), 1000 / this.loopsPerSecond);
+            return;
+        }
+        this.printBase();
+        this.graphicEngine.printTitle('VSPong');
+        if ((callNumber / (this.loopsPerSecond * 0.75)) % 2 < 1) {  // Blink every 0.75 seconds
+            this.graphicEngine.printSubTitle('Connecting to game...');
+        }
+        this.graphicEngine.flush();
+        setTimeout(() => this.lobbyLoop(callNumber + 1), 1000 / this.loopsPerSecond);
+    }
+}
+
+// STUN server selection
 
 const GEO_LOC_URL = 'https://raw.githubusercontent.com/pradt2/always-online-stun/master/geoip_cache.txt';
 const IPV4_URL = 'https://raw.githubusercontent.com/pradt2/always-online-stun/master/valid_ipv4s.txt';
@@ -29,12 +309,12 @@ fetch(GEO_LOC_URL)
                         console.log('Using closest STUN server: ' + closestAddr);
                         // Insert at the beginning of the list
                         iceServers.unshift({ urls: closestAddr as string });
+                        finishedGeoLoc = true;
                     });
             });
     })
     .catch(error => {
         console.error('Error:', error);
-    }).finally(() => {
         finishedGeoLoc = true;
     });
 
@@ -66,228 +346,3 @@ const iceServers = [
         credential: 'HudKCArjK0Mx62LU',
     },
 ];
-
-declare class Peer {
-    constructor(id?: string, options?: object);
-    constructor(options?: object);
-    on(event: string, callback: (connection: DataConnection) => void): void;
-    connect(id: string): DataConnection;
-}
-
-declare class DataConnection {
-    on(event: string, callback: (message: string | object) => void): void;
-    send(message: string): void;
-}
-
-interface Position {
-    x: number;
-    y: number;
-    speedX: number;
-    speedY: number;
-}
-
-function extractPosition(figure: Figure) {
-    return {x: figure.x, y: figure.y, speedX: figure.speedX, speedY: figure.speedY};
-}
-
-function applyPosition(figure: Figure, position: Position) {
-    figure.x = position.x;
-    figure.y = position.y;
-    figure.speedX = position.speedX;
-    figure.speedY = position.speedY;
-}
-
-interface GameState {
-    leftPaddle: Position;
-    rightPaddle: Position;
-    ball: Position;
-    leftScore: number;
-    rightScore: number;
-    leftScoredLast: boolean;
-}
-
-
-export class Remote2PlayerGameHost extends Local2PlayerGame {
-    gameId: string;
-    peer: Peer | undefined;
-    connection: DataConnection | undefined;
-
-    constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string='Host', rightPlayerName: string='-') {
-        super(graphicEngine, leftPlayerName);
-        this.rightPlayerName = rightPlayerName;
-        // Genrate a random game ID
-        this.gameId = gameId;
-        this.graphicEngine.printGameId(this.gameId);
-        this.setUpPeerListeners();
-    }
-
-    onConnectionReady() {
-        const message = '[HANDSHAKE] ' + this.leftPlayerName;
-        this.connection?.send(message);
-    }
-
-    checkShouldServeBall(): void {
-        if (this.connection) {
-            super.checkShouldServeBall();
-        }
-    }
-
-    onConnectionMessage(message: string) {
-        // Try to interpret as right paddle speed
-        if (message.startsWith('[HANDSHAKE] ')) {
-            this.rightPlayerName = message.substring('[HANDSHAKE] '.length);
-            this.graphicEngine.setRightPlayerName(this.rightPlayerName);
-            return;
-        }
-        try {
-            this.rightPaddle.speedY = parseFloat(message);
-        } catch (error) {
-            console.error('Received invalid data from peer: ' + message);
-        }
-    }
-
-    setUpPeerListeners() {
-        if (!finishedGeoLoc) {
-            setTimeout(() => this.setUpPeerListeners(), 100);
-            return;
-        }
-        this.peer = new Peer(this.gameId, {config: {iceServers}});
-        this.peer.on('error', (error) => console.error('Peer error: ' + JSON.stringify(error)));
-        this.peer.on('connection', (connection: DataConnection) => {
-            this.connection = connection;
-            this.connection.on('open', () => this.onConnectionReady());
-            this.connection.on('data', (message) => this.onConnectionMessage(message as string));
-        });
-    }
-
-    moveFigures() {
-        super.moveFigures();
-
-        // Send game state to peer
-        if (this.connection) {
-            this.connection.send(JSON.stringify({
-                leftPaddle: extractPosition(this.leftPaddle),
-                rightPaddle: extractPosition(this.rightPaddle),
-                ball: extractPosition(this.ball),
-                leftScore: this.leftScore,
-                rightScore: this.rightScore,
-                leftScoredLast: this.leftScoredLast,
-            }));
-        }
-    }
-
-    addKeyDownUpListeners() {
-        // Call method on Local1PlayerGame
-        Local1PlayerGame.prototype.addKeyDownUpListeners.call(this);
-    }
-
-    printControls(): void {
-        // Call method on Local1PlayerGame
-        Local1PlayerGame.prototype.printControls.call(this);
-    }
-}
-
-
-export class Remote2PlayerGameClient extends Local2PlayerGame {
-    gameId: string;
-    connection: DataConnection | undefined;
-    peer: Peer | undefined;
-
-    constructor(graphicEngine: GraphicEngine, gameId: string, rightPlayerName: string='Client', leftPlayerName: string='-', ) {
-        super(graphicEngine, leftPlayerName);
-        this.rightPlayerName = rightPlayerName;
-        this.gameId = gameId;
-        this.setUpPeerListeners();
-    }
-
-    onConnectionError(error: object) {
-        console.error('Connection error: ' + JSON.stringify(error));
-        throw new Error('Failed to connect to game with ID ' + this.gameId + ': ' + error);
-    }
-
-    onConnectionReady() {
-        const message = '[HANDSHAKE] ' + this.rightPlayerName;
-        this.connection?.send(message);
-    }
-
-    onConnectionMessage(message: string) {
-        if (message.startsWith('[HANDSHAKE] ')) {
-            this.leftPlayerName = message.substring('[HANDSHAKE] '.length);
-            this.graphicEngine.setLeftPlayerName(this.leftPlayerName);
-        }
-        else {
-            // Try to interpret as game state
-            try {
-                const gameState = JSON.parse(message) as GameState;
-                applyPosition(this.leftPaddle, gameState.leftPaddle);
-                applyPosition(this.rightPaddle, gameState.rightPaddle);
-                applyPosition(this.ball, gameState.ball);
-                this.leftScore = gameState.leftScore;
-                this.rightScore = gameState.rightScore;
-                this.leftScoredLast = gameState.leftScoredLast;
-            }
-            catch {
-                console.error('Received invalid data from peer: ' + message);
-            }
-        }
-    }
-
-    setUpPeerListeners() {
-        // Connect to peer
-        if (!finishedGeoLoc) {
-            setTimeout(() => this.setUpPeerListeners(), 100);
-            return;
-        }
-        this.peer = new Peer({config: {iceServers}});
-        this.peer.on('open', (id) => {
-            this.connection = (this.peer as Peer).connect(this.gameId);
-            this.connection.on('error', (error) => this.onConnectionError(error as object));
-            this.connection.on('open', () => this.onConnectionReady());
-            this.connection.on('data', (message) => this.onConnectionMessage(message as string));
-        }
-        );
-    }
-
-    // Handle keyboard events to send our paddle speed to the host
-    addKeyDownUpListeners(): void {
-        // Add listener for right paddle speed
-        window.addEventListener('keydown', ({key}) => {
-            if (!this.connection) {
-                return;
-            }
-            if (key === 'ArrowUp') {
-                this.connection.send((-effectiveStepSize(PADDLE_STEP_SIZE)).toString());
-            } else if (key === 'ArrowDown') {
-                this.connection.send(effectiveStepSize(PADDLE_STEP_SIZE).toString());
-            }
-        });
-        window.addEventListener('keyup', ({key}) => {
-            if (!this.connection) {
-                return;
-            }
-            if (key === 'ArrowUp' || key === 'ArrowDown') {
-                this.connection.send('0');
-            }
-        });
-    }
-
-    moveFigures(): void {
-        // Done by host
-    }
-
-    handleCollisions(): void {
-        // Done by host
-    }
-
-    handlePlayerScored(): void {
-        // Done by host
-    }
-
-    checkShouldServeBall(): void {
-        // Done by host
-    }
-
-    printControls(): void {
-        this.graphicEngine.printControls('Move right paddle with Up/Down arrows.');
-    }
-}

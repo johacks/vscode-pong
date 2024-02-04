@@ -11,6 +11,7 @@ export class GraphicEngine {
     gameIdDisplay: HTMLSpanElement;
     controlsDisplay: HTMLSpanElement;
     gameInfoDisplay: HTMLDivElement;
+    pingDisplay: HTMLSpanElement;
 
     constructor(width: number, height: number) {
         this.width = width;
@@ -25,6 +26,7 @@ export class GraphicEngine {
         this.gameIdDisplay = document.getElementById('game-id') as HTMLSpanElement;
         this.controlsDisplay = document.getElementById('controls') as HTMLSpanElement;
         this.gameInfoDisplay = document.getElementById('game-info') as HTMLDivElement;
+        this.pingDisplay = document.getElementById('ping') as HTMLSpanElement;
         this.setCanvasDimensions(width, height);
     }
 
@@ -139,6 +141,38 @@ export class GraphicEngine {
         this.buffer.push(
             () => {
                 this.controlsDisplay.textContent = controls;
+            }
+        );
+    }
+
+    printTitle(title: string) {
+        this.buffer.push(
+            () => {
+                this.canvasContext.font = 'bold 40px sans-serif';
+                this.canvasContext.fillStyle = this.foregroundColor;
+                this.canvasContext.textAlign = 'center';
+                // Draw the title
+                this.canvasContext.fillText(title, this.width / 2, this.height / 3);
+            }
+        );
+    }
+
+    printSubTitle(subTitle: string) {
+        this.buffer.push(
+            () => {
+                this.canvasContext.font = 'bold 20px sans-serif';
+                this.canvasContext.fillStyle = this.foregroundColor;
+                this.canvasContext.textAlign = 'center';
+                // Draw the subtitle
+                this.canvasContext.fillText(subTitle, this.width / 2, this.height / 2);
+            }
+        );
+    }
+
+    printPing(ping: number) {
+        this.buffer.push(
+            () => {
+                this.pingDisplay.textContent = `Ping: ${ping}ms`;
             }
         );
     }

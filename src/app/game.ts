@@ -10,14 +10,10 @@ const BALL_SPEED_RATE = 1.05;
 const PADDLE_WIDTH = 0.02;
 const PADDLE_HEIGHT = 0.2;
 const PADDLE_STEP_SIZE = 0.025;
-const GAME_FPS = 120;  // Frames per second, in terms of computation
-const FRAME_PRINT_FREQUENCY = 2;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_FPS = 60
+const GAME_LPS = 120;  // Game loops per second
+const FRAME_PRINT_FREQUENCY = 2;  // Print every FRAME_PRINT_FREQUENCY frames, e.g. 2 means 30 FPS for GAME_LPS = 60
 
-export function effectiveStepSize(stepSize: number) {
-    return stepSize * (60 / GAME_FPS);
-}
-
-export { BALL_SIZE, BALL_SPEED_X, BALL_SPEED_Y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_STEP_SIZE, GAME_FPS, FRAME_PRINT_FREQUENCY};
+export { BALL_SIZE, BALL_SPEED_X, BALL_SPEED_Y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_STEP_SIZE, GAME_LPS as GAME_FPS, FRAME_PRINT_FREQUENCY};
 
 export class Local2PlayerGame {
     leftPaddle: Paddle;
@@ -30,6 +26,9 @@ export class Local2PlayerGame {
     leftPlayerName: string;
     rightPlayerName: string;
     servingBall: boolean = false;
+    keyPressed: boolean = false;
+    loopsPerSecond: number = GAME_LPS;
+    loopsPerPrint: number = FRAME_PRINT_FREQUENCY;
 
     constructor(graphicEngine: GraphicEngine, leftPlayerName: string) {
         this.graphicEngine = graphicEngine;
@@ -47,16 +46,22 @@ export class Local2PlayerGame {
         this.addKeyDownUpListeners();
     }
 
+    // Adapt the step size to the current game loops per second
+    adaptStep(stepSize: number) {
+        return stepSize * (60 / this.loopsPerSecond);
+    }
+
     addKeyDownUpListeners() {
         window.addEventListener('keydown', ({key}) => {
             switch (key as string) {
-                case 'w': this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE); break;
-                case 's': this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE); break;
-                case 'ArrowUp': this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE); break;
-                case 'ArrowDown': this.rightPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE); break;
+                case 'w': this.leftPaddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE); break;
+                case 's': this.leftPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE); break;
+                case 'ArrowUp': this.rightPaddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE); break;
+                case 'ArrowDown': this.rightPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE); break;
             }
         });
         window.addEventListener('keyup', ({key}) => {
+            this.keyPressed = true;
             key = key as string;
             if (key === 'ArrowUp' || key === 'ArrowDown') {
                 this.rightPaddle.speedY = 0;
@@ -68,8 +73,16 @@ export class Local2PlayerGame {
     }
 
     resetBall() {
-        this.ball = new Ball(0.5, 0.5, BALL_SIZE, 0.0, 0.0, BALL_SPEED_RATE, MAX_BALL_SPEED_FACTOR);
-        // Serve the ball after 1 second
+        let ballX;
+        if (this.leftScoredLast) {
+            // Move the ball to the left, close to the left paddle
+            ballX = this.leftPaddle.x + this.leftPaddle.width + BALL_SIZE;
+        }
+        else {
+            // Move the ball to the right, close to the right paddle
+            ballX = this.rightPaddle.x - BALL_SIZE;
+        }
+        this.ball = new Ball(ballX, 0.5, BALL_SIZE, 0.0, 0.0, BALL_SPEED_RATE, MAX_BALL_SPEED_FACTOR);
         return this.ball;
     }
 
@@ -77,9 +90,9 @@ export class Local2PlayerGame {
         this.servingBall = false;
         // If the left player scored last, the ball goes to the right, and vice versa
         const speedXsign = this.leftScoredLast ? 1 : -1;
-        this.ball.speedX = effectiveStepSize(BALL_SPEED_X) * speedXsign;
+        this.ball.speedX = this.adaptStep(BALL_SPEED_X) * speedXsign;
         // Speed y is a random number
-        this.ball.speedY = effectiveStepSize(BALL_SPEED_Y * (Math.random() * 2 - 1));
+        this.ball.speedY = this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
     }
 
     resetLeftPaddle() {
@@ -97,7 +110,6 @@ export class Local2PlayerGame {
         this.resetLeftPaddle();
         this.resetRightPaddle();
     }
-
 
     moveFigures() {
         this.leftPaddle.move();
@@ -159,11 +171,26 @@ export class Local2PlayerGame {
         }
     }
 
+    // Lobby loop is a loop that runs before the game starts, and waits for a key press
+    lobbyLoop(callNumber: number = 0) {
+        if (this.keyPressed) {
+            return this.mainLoop(0);
+        }
+        this.printBase();
+        this.graphicEngine.printTitle('VSPong');
+        if ((callNumber / (this.loopsPerSecond * 0.75)) % 2 < 1) {  // Blink every 0.75 seconds
+            this.graphicEngine.printSubTitle('Press any key to start the game.');
+        }
+        this.graphicEngine.flush();
+        setTimeout(() => this.lobbyLoop(callNumber + 1), 1000 / this.loopsPerSecond);
+    }
+
+    // Main loop is the game loop
     mainLoop(callNumber: number = 0) {
         // We draw on each new animation frame, which represents current state of the game
-        setTimeout(() => this.mainLoop(callNumber + 1), 1000 / GAME_FPS);
+        setTimeout(() => this.mainLoop(callNumber + 1), 1000 / this.loopsPerSecond);
         // Clear the canvas every other frame to avoid flickering
-        if (callNumber % FRAME_PRINT_FREQUENCY === 0) {
+        if (callNumber % this.loopsPerPrint === 0) {
             this.graphicEngine.clear();
         }
         // Move the figures
@@ -175,7 +202,7 @@ export class Local2PlayerGame {
         this.checkShouldServeBall();
 
         // Flush the message queue every other frame to avoid flickering
-        if (callNumber % FRAME_PRINT_FREQUENCY === 0) {
+        if (callNumber % this.loopsPerPrint === 0) {
             // Draw the figures and base of canvas
             this.printGame();
             this.graphicEngine.flush();
@@ -184,8 +211,6 @@ export class Local2PlayerGame {
 }
 
 export class Local1PlayerGame extends Local2PlayerGame {
-
-
     constructor(graphicEngine: GraphicEngine, leftPlayerName: string) {
         super(graphicEngine, leftPlayerName);
         this.rightPlayerName = 'Computer';
@@ -194,11 +219,12 @@ export class Local1PlayerGame extends Local2PlayerGame {
     addKeyDownUpListeners() {
         window.addEventListener('keydown', ({key}) => {
             switch (key) {
-                case 'ArrowUp': this.leftPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE); break;
-                case 'ArrowDown': this.leftPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE); break;
+                case 'ArrowUp': this.leftPaddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE); break;
+                case 'ArrowDown': this.leftPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE); break;
             }
         });
         window.addEventListener('keyup', ({key}) => {
+            this.keyPressed = true;
             if (key === 'ArrowUp' || key === 'ArrowDown') {
                 this.leftPaddle.speedY = 0;
             }
@@ -210,10 +236,10 @@ export class Local1PlayerGame extends Local2PlayerGame {
         const ballCenterY = this.ball.y + this.ball.height / 2;
         const paddleCenterY = this.rightPaddle.y + this.rightPaddle.height / 2;
         if (ballCenterY > paddleCenterY) {
-            this.rightPaddle.speedY = effectiveStepSize(PADDLE_STEP_SIZE);
+            this.rightPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE);
         }
         else if (ballCenterY < paddleCenterY) {
-            this.rightPaddle.speedY = -effectiveStepSize(PADDLE_STEP_SIZE);
+            this.rightPaddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE);
         }
         else {
             this.rightPaddle.speedY = 0;

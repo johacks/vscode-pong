@@ -57,7 +57,7 @@
     "vscode:prepublish": "npm run compile",
     "build": "webpack --mode production && node bundle_index.js",
     "compile": "npm run build && tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "watch": "npm run build && tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test"
