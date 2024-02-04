@@ -48,7 +48,7 @@ export class Ball extends Figure {
 
     handleBounceOnPaddle(paddle: Paddle) {
         if (!this.intersectsWith(paddle)) {
-            return;
+            return false;
         }
         // Compute the collision point, which is a number between 0 and 1
         const collisionPoint = (this.y + this.height / 2 - paddle.y) / paddle.height;
@@ -69,5 +69,7 @@ export class Ball extends Figure {
         const speed = Math.sqrt(this.speedX ** 2 + this.speedY ** 2) * speedIncrement;
         this.speedX = speed * Math.cos(angle) * Math.sign(this.speedX);
         this.speedY = speed * Math.sin(angle);
+
+        return true;
     }
 }

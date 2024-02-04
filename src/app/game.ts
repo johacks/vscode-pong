@@ -76,9 +76,11 @@ export class Local2PlayerGame {
         let ballX;
         if (this.leftScoredLast) {
             // Move the ball to the left, close to the left paddle
+            console.log('setting ball to the left');
             ballX = this.leftPaddle.x + this.leftPaddle.width + BALL_SIZE;
         }
         else {
+            console.log('setting ball to the right');
             // Move the ball to the right, close to the right paddle
             ballX = this.rightPaddle.x - BALL_SIZE;
         }
@@ -92,7 +94,8 @@ export class Local2PlayerGame {
         const speedXsign = this.leftScoredLast ? 1 : -1;
         this.ball.speedX = this.adaptStep(BALL_SPEED_X) * speedXsign;
         // Speed y is a random number
-        this.ball.speedY = this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
+        // this.ball.speedY = this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
+        this.ball.speedY = 0;
     }
 
     resetLeftPaddle() {

@@ -3,6 +3,8 @@ import { GraphicEngine } from './graphicEngine';
 import { PADDLE_STEP_SIZE } from './game';
 import { Figure } from './figure';
 
+const LOOPS_PER_SEND_STATE = 3;
+
 
 declare class Peer {
     constructor(id?: string, options?: object);
@@ -21,23 +23,29 @@ interface PaddlePosition {
     speedY: number;
 }
 
-interface Position extends PaddlePosition {
-    x?: number;
-    speedX?: number;
+interface BallPosition extends PaddlePosition {
+    x: number;
+    speedX: number;
 }
 
-function applyPosition(figure: Figure, position: Position) {
+function applyBallPosition(figure: Figure, position: BallPosition) {
     figure.y = position.y;
     figure.speedY = position.speedY;
-    figure.x = position.x ?? figure.x;
-    figure.speedX = position.speedX ?? figure.speedX;
+    figure.x = position.x;
+    figure.speedX = position.speedX;
+}
+
+function applyPaddlePosition(figure: Figure, position: PaddlePosition) {
+    figure.y = position.y;
+    figure.speedY = position.speedY;
 }
 
 interface PeerState {
     opponentPaddle: PaddlePosition;
     timestamp: number;
-    ball?: Position;
-    score?: number;
+    ball: BallPosition;
+    score: number;
+    ballBounced: boolean;
 }
 
 enum Side {
@@ -51,6 +59,9 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     side: Side;
     ping: number = 0;
     connectionReady: boolean = false;
+    loopsPerSendState: number = LOOPS_PER_SEND_STATE;
+    loopsPerPrint: number = LOOPS_PER_SEND_STATE;
+    ballBounced: boolean = false;
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string, rightPlayerName: string, side: Side) {
         super(graphicEngine, leftPlayerName);
@@ -65,6 +76,9 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     get paddle(): Figure {
         return this.side === Side.LEFT ? this.leftPaddle : this.rightPaddle;
     }
+    get opponentPaddle(): Figure {
+        return this.side === Side.LEFT ? this.rightPaddle : this.leftPaddle;
+    }
     get playerName(): string {
         return this.side === Side.LEFT ? this.leftPlayerName : this.rightPlayerName;
     }
@@ -72,10 +86,21 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         if (this.side === Side.LEFT) { this.rightPlayerName = name; } 
         else { this.leftPlayerName = name; }
     }
+
     get score(): number {
+        return this.side === Side.LEFT ? this.leftScore : this.rightScore;
+    }
+
+    set score(score: number) {
+        if (this.side === Side.LEFT) { this.leftScore = score; } 
+        else { this.rightScore = score; }
+    }
+
+    get opponentScore(): number {
         return this.side === Side.LEFT ? this.rightScore : this.leftScore;
     }
-    set score(score: number) {
+
+    set opponentScore(score: number) {
         if (this.side === Side.LEFT) { this.rightScore = score; } 
         else { this.leftScore = score; }
     }
@@ -96,17 +121,25 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
             return;
         }
         // Check if the message is a peer state
+        let peerState: PeerState;
         try {
-            const peerState = JSON.parse(message) as PeerState;
-            this.score = peerState.score ?? this.score;
-            applyPosition(this.paddle, peerState.opponentPaddle);
-            if (peerState.ball) {
-                applyPosition(this.ball, peerState.ball);
-            }
-            this.ping = Date.now() - peerState.timestamp;
+            peerState = JSON.parse(message) as PeerState;
         } catch (error) {
             console.error('Received invalid data from peer: ' + message);
+            return;
         }
+        if (peerState.score !== this.score) {
+            // We have scored
+            this.leftScoredLast = this.side === Side.LEFT;
+            this.score = peerState.score;
+            this.resetFigures();
+        }
+        applyPaddlePosition(this.opponentPaddle, peerState.opponentPaddle);
+        // Ensure we only apply peer ball position if its moving towards him or there was a bounce
+        if ((peerState.ball.speedX < 0 && this.side === Side.RIGHT) || (peerState.ball.speedX > 0 && this.side === Side.LEFT) || peerState.ballBounced) {
+            applyBallPosition(this.ball, peerState.ball);
+        }
+        this.ping = Date.now() - peerState.timestamp;
     }
     addKeyDownUpListeners() {
         window.addEventListener('keydown', ({key}) => {
@@ -126,7 +159,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     handleCollisions() {
         if (this.ballMovingToOurSide()) {
             // If the ball is moving to our side, we act as the host
-            this.ball.handleBounceOnPaddle(this.paddle);
+            this.ballBounced = this.ball.handleBounceOnPaddle(this.paddle);
             this.ball.handleBounceOnFloorOrCeiling();
         }        
     }
@@ -141,14 +174,18 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     handlePlayerScored() {
         // Only check our own side
         if (this.ballMovingToOurSide()) {
-            this.score++;
-            this.leftScoredLast = this.side === Side.LEFT;
-            this.resetFigures();
+            // The opponent scored
+            if (this.ball.x <= 0 || this.ball.x + this.ball.width >= 1) {
+                this.opponentScore++;
+                this.leftScoredLast = this.side !== Side.LEFT;
+                this.resetFigures();
+            }
         }
     }
 
     checkShouldServeBall() {
-        if (this.ball.speedX === 0 && !this.servingBall && ((this.side === Side.LEFT) === this.leftScoredLast)) {
+        const opponentScoredLast = this.leftScoredLast === (this.side !== Side.LEFT);
+        if (this.ball.speedX === 0 && !this.servingBall && opponentScoredLast) {
             this.servingBall = true;
             setTimeout(() => this.serveBall(), 1000);
         }
@@ -159,17 +196,16 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         this.graphicEngine.printPing(this.ping);
     }
 
-    mainLoop(callNumber?: number) {
+    mainLoop(callNumber: number = 0) {
         if (!this.connection) { return; }
         let gameState: PeerState = {
             opponentPaddle: {y: this.paddle.y, speedY: this.paddle.speedY},
             timestamp: Date.now(),
+            ball: {x: this.ball.x, y: this.ball.y, speedX: this.ball.speedX, speedY: this.ball.speedY},
+            score: this.opponentScore,
+            ballBounced: this.ballBounced,
         };
-        // If the ball is moving to our side, we send ball state and score
-        if (this.ballMovingToOurSide() || this.servingBall) {
-            gameState.ball = {x: this.ball.x, y: this.ball.y, speedX: this.ball.speedX, speedY: this.ball.speedY};
-            gameState.score = this.score;
-        }
+        this.ballBounced = false;
         this.connection.send(JSON.stringify(gameState));
         super.mainLoop(callNumber);
     }
@@ -179,7 +215,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
 export class Remote2PlayerGameHost extends Remote2PlayerGame {
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string='Host', rightPlayerName: string='-') {
-        super(graphicEngine, leftPlayerName, gameId, rightPlayerName, Side.LEFT);
+        super(graphicEngine, gameId, leftPlayerName, rightPlayerName, Side.LEFT);
     }
 
     setUpPeerListeners() {
@@ -238,7 +274,7 @@ export class Remote2PlayerGameHost extends Remote2PlayerGame {
 
 export class Remote2PlayerGameClient extends Remote2PlayerGame {
     constructor(graphicEngine: GraphicEngine, gameId: string, rightPlayerName: string='Client', leftPlayerName: string='-', ) {
-        super(graphicEngine, leftPlayerName, gameId, rightPlayerName, Side.RIGHT);
+        super(graphicEngine, gameId, leftPlayerName, rightPlayerName, Side.RIGHT);
 
     }
 
