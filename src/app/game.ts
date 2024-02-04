@@ -94,8 +94,7 @@ export class Local2PlayerGame {
         const speedXsign = this.leftScoredLast ? 1 : -1;
         this.ball.speedX = this.adaptStep(BALL_SPEED_X) * speedXsign;
         // Speed y is a random number
-        // this.ball.speedY = this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
-        this.ball.speedY = 0;
+        this.ball.speedY = this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
     }
 
     resetLeftPaddle() {
@@ -218,6 +217,7 @@ export class Local1PlayerGame extends Local2PlayerGame {
         super(graphicEngine, leftPlayerName);
         this.rightPlayerName = 'Computer';
     }
+    AIPendingcallsTillNextMove: number = 0;
 
     addKeyDownUpListeners() {
         window.addEventListener('keydown', ({key}) => {
@@ -235,17 +235,26 @@ export class Local1PlayerGame extends Local2PlayerGame {
     }
 
     makeAIMove() {
-        // Move the right paddle towards the ball
-        const ballCenterY = this.ball.y + this.ball.height / 2;
-        const paddleCenterY = this.rightPaddle.y + this.rightPaddle.height / 2;
-        if (ballCenterY > paddleCenterY) {
-            this.rightPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE);
+        if (this.AIPendingcallsTillNextMove !== 0) {
+            this.AIPendingcallsTillNextMove--;
+            return;
         }
-        else if (ballCenterY < paddleCenterY) {
+        let ballCenterY = this.ball.y + this.ball.height / 2;
+
+        // Try to match the ball's center with the paddle's center
+        if (ballCenterY > this.rightPaddle.y + this.rightPaddle.height / 2) {
+            this.rightPaddle.speedY = this.adaptStep(PADDLE_STEP_SIZE);
+            this.AIPendingcallsTillNextMove = Math.floor(Math.random() * 5) + 3;
+        }
+        else if (ballCenterY < this.rightPaddle.y) {
             this.rightPaddle.speedY = -this.adaptStep(PADDLE_STEP_SIZE);
+            // Random number between 3 and 8
+            this.AIPendingcallsTillNextMove = Math.floor(Math.random() * 5) + 3;
         }
         else {
             this.rightPaddle.speedY = 0;
+            // Random number between 5 and 15
+            this.AIPendingcallsTillNextMove = Math.floor(Math.random() * 10) + 5;
         }
     }
 
