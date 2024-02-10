@@ -57,6 +57,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     ping: number = 0;
     connectionReady: boolean = false;
     ballMovingToOurSide: boolean = false;
+    lastTimestamp: number = 0;
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string, rightPlayerName: string, side: Side) {
         super(graphicEngine, leftPlayerName);
@@ -132,7 +133,8 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
             this.resetFigures();
         }
         this.opponentPaddle.y = peerState.opponentPaddleY;
-        this.ping = Date.now() - peerState.timestamp;
+        this.ping = peerState.timestamp - this.lastTimestamp;
+        this.lastTimestamp = peerState.timestamp;
         // Ensure we only apply peer ball position if its moving towards him
         if (!this.ballMovingToOurSide) {
             applyBallPosition(this.ball, peerState.ball);

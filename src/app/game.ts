@@ -94,7 +94,7 @@ export class Local2PlayerGame {
         const speedXsign = this.leftScoredLast ? 1 : -1;
         this.ball.speedX = this.adaptStep(BALL_SPEED_X) * speedXsign;
         // Speed y is a random number
-        this.ball.speedY = 0; // this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
+        this.ball.speedY = this.adaptStep(BALL_SPEED_Y * (Math.random() * 2 - 1));
     }
 
     resetLeftPaddle() {
