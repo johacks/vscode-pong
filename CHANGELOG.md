@@ -8,6 +8,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Initial release
 
+## [0.1.6]
+
+- Fix ping display
+
 ## [0.1.3] - 2024-02-10
 
 ### Added

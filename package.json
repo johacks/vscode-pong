@@ -3,7 +3,7 @@
   "displayName": "VSPong",
   "publisher": "johacks",
   "description": "Lose precious time playing pong with your coworkers!",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "engines": {
     "vscode": "^1.76.0"
   },
