@@ -7,3 +7,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 - Initial release
+
+## [0.1.3] - 2024-02-10
+
+### Added
+
+- First multiplayer stable release
+- Better AI

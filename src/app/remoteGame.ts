@@ -2,6 +2,7 @@ import { Local1PlayerGame, Local2PlayerGame } from './game';
 import { GraphicEngine } from './graphicEngine';
 import { PADDLE_STEP_SIZE } from './game';
 import { Figure } from './figure';
+import { Ball } from './ball';
 
 
 declare class Peer {
@@ -19,22 +20,29 @@ declare class DataConnection {
 interface BallPosition {
     y: number;
     x: number;
+}
+
+interface BallPositionAndSpeed extends BallPosition {
     speedX: number;
     speedY: number;
 }
 
-function applyBallPosition(figure: Figure, position: BallPosition) {
-    figure.y = position.y;
-    figure.speedY = position.speedY;
-    figure.x = position.x;
-    figure.speedX = position.speedX;
+function applyBallPosition(ball: Ball, position: BallPosition) {
+    ball.y = position.y;
+    ball.x = position.x;
+}
+
+function applyBallPositionAndSpeed(ball: Ball, position: BallPositionAndSpeed) {
+    applyBallPosition(ball, position);
+    ball.speedY = position.speedY;
+    ball.speedX = position.speedX;
 }
 
 interface PeerState {
     opponentPaddleY: number;
-    timestamp: number;
     ball: BallPosition;
     score: number;
+    timestamp: number;
 }
 
 enum Side {
@@ -49,7 +57,6 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     ping: number = 0;
     connectionReady: boolean = false;
     ballMovingToOurSide: boolean = false;
-    lastTimestamp: number = 0;
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string, rightPlayerName: string, side: Side) {
         super(graphicEngine, leftPlayerName);
@@ -97,7 +104,6 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         const message = '[HANDSHAKE] ' + this.playerName;
         this.connection?.send(message);
         this.connectionReady = true;
-        this.lastTimestamp = Date.now();
     }
     onConnectionMessage(message: string) {
         // Check if the message is a handshake
@@ -107,8 +113,8 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         }
         if (message.startsWith('[BOUNCE] ')) {
             this.ballMovingToOurSide = true;
-            const ballState = JSON.parse(message.substring('[BOUNCE] '.length)) as BallPosition;
-            applyBallPosition(this.ball, ballState);
+            const ballState = JSON.parse(message.substring('[BOUNCE] '.length)) as BallPositionAndSpeed;
+            applyBallPositionAndSpeed(this.ball, ballState);
             return;
         }
         // Check if the message is a peer state
@@ -126,12 +132,11 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
             this.resetFigures();
         }
         this.opponentPaddle.y = peerState.opponentPaddleY;
+        this.ping = Date.now() - peerState.timestamp;
         // Ensure we only apply peer ball position if its moving towards him
         if (!this.ballMovingToOurSide) {
             applyBallPosition(this.ball, peerState.ball);
         }
-        this.lastTimestamp = peerState.timestamp;
-        this.ping = Date.now() - peerState.timestamp;
     }
     addKeyDownUpListeners() {
         window.addEventListener('keydown', ({key}) => {
@@ -169,17 +174,6 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         if (this.ballMovingToOurSide) {
             this.ball.move();
         }
-        else {
-            // Our last know position of the ball is the one we received from the opponent
-            const elapsedMs = Date.now() - this.lastTimestamp;
-            // Currently ball speedX determines step size per loop, convert to step size per millisecond
-            const speedXMs = (this.ball.speedX * this.loopsPerSecond) / 1000;
-            const speedYMs = (this.ball.speedY * this.loopsPerSecond) / 1000;
-
-            // Move the ball by the time elapsed since the last update
-            this.ball.x += speedXMs * elapsedMs;
-            this.ball.y += speedYMs * elapsedMs;
-        }
         this.paddle.move();
     }
 
@@ -212,9 +206,9 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         if (!this.connection) { return; }
         let gameState: PeerState = {
             opponentPaddleY: this.paddle.y,
-            timestamp: Date.now(),
-            ball: {x: this.ball.x, y: this.ball.y, speedX: this.ball.speedX, speedY: this.ball.speedY},
+            ball: {x: this.ball.x, y: this.ball.y},
             score: this.opponentScore,
+            timestamp: Date.now()
         };
         this.connection.send(JSON.stringify(gameState));
         super.mainLoop(callNumber);
