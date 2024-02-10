@@ -23,18 +23,18 @@ This extension contributes the following settings:
 
 ### Singleplayer
 
-\!\[singleplayer\]\(resources/singleplayer.gif\)
+![singleplayer](resources/singleplayer.gif)
 
 ### Create a game
 
-\!\[create\]\(resources/multiplayer_create.gif\)
+![create](resources/multiplayer_create.gif)
 
 ### Join a game
-\!\[join\]\(resources/multiplayer_join.gif\)
+![join](resources/multiplayer_join.gif)
 
 ### Change colors
 
 The colors of the paddles and the ball change depending on the theme you are using!
 
-\!\[color\]\(resources/color_theme.gif\)
+![color](resources/color_theme.gif)
 
