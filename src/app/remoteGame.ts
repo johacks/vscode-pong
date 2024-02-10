@@ -3,8 +3,6 @@ import { GraphicEngine } from './graphicEngine';
 import { PADDLE_STEP_SIZE } from './game';
 import { Figure } from './figure';
 
-const LOOPS_PER_SEND_STATE = 3;
-
 
 declare class Peer {
     constructor(id?: string, options?: object);
@@ -18,14 +16,11 @@ declare class DataConnection {
     send(message: string): void;
 }
 
-interface PaddlePosition {
+interface BallPosition {
     y: number;
-    speedY: number;
-}
-
-interface BallPosition extends PaddlePosition {
     x: number;
     speedX: number;
+    speedY: number;
 }
 
 function applyBallPosition(figure: Figure, position: BallPosition) {
@@ -35,17 +30,11 @@ function applyBallPosition(figure: Figure, position: BallPosition) {
     figure.speedX = position.speedX;
 }
 
-function applyPaddlePosition(figure: Figure, position: PaddlePosition) {
-    figure.y = position.y;
-    figure.speedY = position.speedY;
-}
-
 interface PeerState {
-    opponentPaddle: PaddlePosition;
+    opponentPaddleY: number;
     timestamp: number;
     ball: BallPosition;
     score: number;
-    ballBounced: boolean;
 }
 
 enum Side {
@@ -59,9 +48,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     side: Side;
     ping: number = 0;
     connectionReady: boolean = false;
-    loopsPerSendState: number = LOOPS_PER_SEND_STATE;
-    loopsPerPrint: number = LOOPS_PER_SEND_STATE;
-    ballBounced: boolean = false;
+    ballMovingToOurSide: boolean = false;
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string, rightPlayerName: string, side: Side) {
         super(graphicEngine, leftPlayerName);
@@ -105,10 +92,6 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         else { this.leftScore = score; }
     }
 
-    ballMovingToOurSide(): boolean {
-        return this.ball.speedX < 0 && this.side === Side.LEFT || this.ball.speedX > 0 && this.side === Side.RIGHT;
-    }
-
     onConnectionReady() {
         const message = '[HANDSHAKE] ' + this.playerName;
         this.connection?.send(message);
@@ -118,6 +101,12 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         // Check if the message is a handshake
         if (message.startsWith('[HANDSHAKE] ')) {
             this.opponentName = message.substring('[HANDSHAKE] '.length);
+            return;
+        }
+        if (message.startsWith('[BOUNCE] ')) {
+            this.ballMovingToOurSide = true;
+            const ballState = JSON.parse(message.substring('[BOUNCE] '.length)) as BallPosition;
+            applyBallPosition(this.ball, ballState);
             return;
         }
         // Check if the message is a peer state
@@ -134,9 +123,9 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
             this.score = peerState.score;
             this.resetFigures();
         }
-        applyPaddlePosition(this.opponentPaddle, peerState.opponentPaddle);
-        // Ensure we only apply peer ball position if its moving towards him or there was a bounce
-        if ((peerState.ball.speedX < 0 && this.side === Side.RIGHT) || (peerState.ball.speedX > 0 && this.side === Side.LEFT) || peerState.ballBounced) {
+        this.opponentPaddle.y = peerState.opponentPaddleY;
+        // Ensure we only apply peer ball position if its moving towards him
+        if (!this.ballMovingToOurSide) {
             applyBallPosition(this.ball, peerState.ball);
         }
         this.ping = Date.now() - peerState.timestamp;
@@ -157,15 +146,24 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     }
 
     handleCollisions() {
-        if (this.ballMovingToOurSide()) {
+        if (this.ballMovingToOurSide) {
             // If the ball is moving to our side, we act as the host
-            this.ballBounced = this.ball.handleBounceOnPaddle(this.paddle);
             this.ball.handleBounceOnFloorOrCeiling();
+            this.ballMovingToOurSide = !this.ball.handleBounceOnPaddle(this.paddle);
+            if (!this.ballMovingToOurSide) {
+                // Notify the opponent he is now the host
+                this.connection?.send('[BOUNCE] ' + JSON.stringify({
+                    x: this.ball.x,
+                    y: this.ball.y,
+                    speedX: this.ball.speedX,
+                    speedY: this.ball.speedY,
+                }));
+            }
         }        
     }
 
     moveFigures() {
-        if (this.ballMovingToOurSide()) {
+        if (this.ballMovingToOurSide) {
             this.ball.move();
         }
         this.paddle.move();
@@ -173,7 +171,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
 
     handlePlayerScored() {
         // Only check our own side
-        if (this.ballMovingToOurSide()) {
+        if (this.ballMovingToOurSide) {
             // The opponent scored
             if (this.ball.x <= 0 || this.ball.x + this.ball.width >= 1) {
                 this.opponentScore++;
@@ -199,13 +197,11 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     mainLoop(callNumber: number = 0) {
         if (!this.connection) { return; }
         let gameState: PeerState = {
-            opponentPaddle: {y: this.paddle.y, speedY: this.paddle.speedY},
+            opponentPaddleY: this.paddle.y,
             timestamp: Date.now(),
             ball: {x: this.ball.x, y: this.ball.y, speedX: this.ball.speedX, speedY: this.ball.speedY},
             score: this.opponentScore,
-            ballBounced: this.ballBounced,
         };
-        this.ballBounced = false;
         this.connection.send(JSON.stringify(gameState));
         super.mainLoop(callNumber);
     }
@@ -216,6 +212,7 @@ export class Remote2PlayerGameHost extends Remote2PlayerGame {
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string='Host', rightPlayerName: string='-') {
         super(graphicEngine, gameId, leftPlayerName, rightPlayerName, Side.LEFT);
+        this.ballMovingToOurSide = true;
     }
 
     setUpPeerListeners() {
@@ -275,7 +272,7 @@ export class Remote2PlayerGameHost extends Remote2PlayerGame {
 export class Remote2PlayerGameClient extends Remote2PlayerGame {
     constructor(graphicEngine: GraphicEngine, gameId: string, rightPlayerName: string='Client', leftPlayerName: string='-', ) {
         super(graphicEngine, gameId, leftPlayerName, rightPlayerName, Side.RIGHT);
-
+        this.ballMovingToOurSide = false;
     }
 
     onConnectionError(error: object) {
