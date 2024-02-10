@@ -9,7 +9,7 @@ declare class Peer {
     constructor(id?: string, options?: object);
     constructor(options?: object);
     on(event: string, callback: (connection: DataConnection) => void): void;
-    connect(id: string): DataConnection;
+    connect(id: string, options?: object): DataConnection;
 }
 
 declare class DataConnection {
@@ -298,7 +298,7 @@ export class Remote2PlayerGameClient extends Remote2PlayerGame {
         }
         this.peer = new Peer({config: {iceServers}});
         this.peer.on('open', (id) => {
-            this.connection = (this.peer as Peer).connect(this.gameId);
+            this.connection = (this.peer as Peer).connect(this.gameId, {reliable: true});
             this.connection.on('error', (error) => this.onConnectionError(error as object));
             this.connection.on('open', () => this.onConnectionReady());
             this.connection.on('data', (message) => this.onConnectionMessage(message as string));
