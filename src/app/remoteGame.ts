@@ -49,6 +49,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     ping: number = 0;
     connectionReady: boolean = false;
     ballMovingToOurSide: boolean = false;
+    lastTimestamp: number = 0;
 
     constructor(graphicEngine: GraphicEngine, gameId: string, leftPlayerName: string, rightPlayerName: string, side: Side) {
         super(graphicEngine, leftPlayerName);
@@ -96,6 +97,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         const message = '[HANDSHAKE] ' + this.playerName;
         this.connection?.send(message);
         this.connectionReady = true;
+        this.lastTimestamp = Date.now();
     }
     onConnectionMessage(message: string) {
         // Check if the message is a handshake
@@ -128,6 +130,7 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
         if (!this.ballMovingToOurSide) {
             applyBallPosition(this.ball, peerState.ball);
         }
+        this.lastTimestamp = peerState.timestamp;
         this.ping = Date.now() - peerState.timestamp;
     }
     addKeyDownUpListeners() {
@@ -165,6 +168,17 @@ abstract class Remote2PlayerGame extends Local2PlayerGame {
     moveFigures() {
         if (this.ballMovingToOurSide) {
             this.ball.move();
+        }
+        else {
+            // Our last know position of the ball is the one we received from the opponent
+            const elapsedMs = Date.now() - this.lastTimestamp;
+            // Currently ball speedX determines step size per loop, convert to step size per millisecond
+            const speedXMs = (this.ball.speedX * this.loopsPerSecond) / 1000;
+            const speedYMs = (this.ball.speedY * this.loopsPerSecond) / 1000;
+
+            // Move the ball by the time elapsed since the last update
+            this.ball.x += speedXMs * elapsedMs;
+            this.ball.y += speedYMs * elapsedMs;
         }
         this.paddle.move();
     }
